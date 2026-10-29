@@ -1,0 +1,36 @@
+name: net_app_launcher
+description: "Network Suite Launcher and Shared Device Identity Manager desktop application."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  network_suite_shared:
+    path: ../network_suite_shared
+
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  http: ^1.2.2
+  archive: ^4.0.2
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  intl: ^0.20.2
+  file_picker: ^13.1.0
+  csv: ^8.0.0
+  sqlite3: ^3.7.1
+  sqlite3_flutter_libs: ^0.6.0+eol
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
