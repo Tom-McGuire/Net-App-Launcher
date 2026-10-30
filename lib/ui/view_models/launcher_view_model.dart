@@ -103,6 +103,9 @@ class LauncherViewModel extends ChangeNotifier {
       ]);
       _apps = results[0] as List<SuiteApp>;
       _launcherSelfUpdate = results[1] as ReleaseInfo?;
+      if (_repository.isRateLimited) {
+        _errorMessage = 'GitHub API rate limit reached (HTTP 403/429). Some public releases may not be shown until the rate limit resets.';
+      }
     } catch (e) {
       _errorMessage = 'Failed to discover suite applications: $e';
     } finally {
@@ -203,6 +206,46 @@ class LauncherViewModel extends ChangeNotifier {
       if (idx != -1) {
         _apps[idx] = _apps[idx].copyWith(isRunning: false);
       }
+      notifyListeners();
+    }
+  }
+
+  /// Terminates a currently running suite application.
+  void stop(SuiteApp app) {
+    _repository.terminateApp(app.id);
+    final idx = _apps.indexWhere((a) => a.id == app.id);
+    if (idx != -1) {
+      _apps[idx] = _apps[idx].copyWith(isRunning: false);
+      notifyListeners();
+    }
+  }
+
+  /// Uninstalls a locally installed suite application.
+  void uninstall(SuiteApp app) {
+    _errorMessage = null;
+    try {
+      _repository.uninstallApp(app.id);
+      final idx = _apps.indexWhere((a) => a.id == app.id);
+      if (idx != -1) {
+        final updated = _apps[idx];
+        if (!updated.isPublic && !_showUnreleased) {
+          _apps.removeAt(idx);
+        } else {
+          _apps[idx] = SuiteApp(
+            definition: updated.definition,
+            status: AppStatus.notInstalled,
+            isPublic: updated.isPublic,
+            installedVersion: null,
+            latestRelease: updated.latestRelease,
+            executablePath: null,
+            dependencyInfo: updated.dependencyInfo,
+            isRunning: false,
+          );
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to uninstall ${app.name}: $e';
       notifyListeners();
     }
   }

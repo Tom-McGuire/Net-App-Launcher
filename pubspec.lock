@@ -82,7 +82,7 @@ packages:
     source: hosted
     version: "0.3.5+5"
   crypto:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: crypto
       sha256: e3626ae6270383c9e3a549f34c9e4cd26c09ae6a9adaab2bf4737a00340efdc4
@@ -355,7 +355,7 @@ packages:
   network_suite_shared:
     dependency: "direct main"
     description:
-      path: "../network_suite_shared"
+      path: "packages/network_suite_shared"
       relative: true
     source: path
     version: "1.0.0"
@@ -480,7 +480,7 @@ packages:
     source: hosted
     version: "6.1.5+1"
   pub_semver:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: pub_semver
       sha256: "261236774e8b1d69cfc6b9eabbc96c40f25e7a2d6b171f3385d4f65d5734fb24"
@@ -516,14 +516,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.8.0"
-  sqlite3_flutter_libs:
-    dependency: "direct main"
-    description:
-      name: sqlite3_flutter_libs
-      sha256: "3ed7553eee7bb368f8950f58ba29f634e06e813c029aff6a0d60862b96de8454"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.0+eol"
   stack_trace:
     dependency: transitive
     description:

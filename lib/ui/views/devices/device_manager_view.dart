@@ -641,19 +641,23 @@ class DeviceManagerView extends StatelessWidget {
     DeviceManagerViewModel vm,
     String format,
   ) async {
-    final picked = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: [format],
-    );
+    try {
+      final picked = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [format],
+      );
 
-    if (picked.isNotEmpty && picked.single.path != null) {
-      final file = File(picked.single.path!);
-      final content = await file.readAsString();
-      if (format == 'csv') {
-        vm.importFromCsv(content);
-      } else {
-        vm.importFromJson(content);
+      if (picked.isNotEmpty && picked.single.path != null) {
+        final file = File(picked.single.path!);
+        final content = await file.readAsString();
+        if (format == 'csv') {
+          vm.importFromCsv(content);
+        } else {
+          vm.importFromJson(content);
+        }
       }
+    } catch (e) {
+      vm.setFeedbackMessage('Failed to read $format file: $e');
     }
   }
 
@@ -662,21 +666,25 @@ class DeviceManagerView extends StatelessWidget {
     DeviceManagerViewModel vm,
     String format,
   ) async {
-    final content = format == 'csv' ? vm.exportCsv() : vm.exportJson();
-    final defaultFileName =
-        'network_suite_devices_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.$format';
+    try {
+      final content = format == 'csv' ? vm.exportCsv() : vm.exportJson();
+      final defaultFileName =
+          'network_suite_devices_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.$format';
 
-    final bytes = Uint8List.fromList(utf8.encode(content));
-    final saveUri = await FilePicker.saveFile(
-      dialogTitle: 'Export Shared Devices',
-      fileName: defaultFileName,
-      bytes: bytes,
-    );
-
-    if (saveUri != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Devices exported successfully ($format)')),
+      final bytes = Uint8List.fromList(utf8.encode(content));
+      final saveUri = await FilePicker.saveFile(
+        dialogTitle: 'Export Shared Devices',
+        fileName: defaultFileName,
+        bytes: bytes,
       );
+
+      if (saveUri != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Devices exported successfully ($format)')),
+        );
+      }
+    } catch (e) {
+      vm.setFeedbackMessage('Failed to export $format file: $e');
     }
   }
 }

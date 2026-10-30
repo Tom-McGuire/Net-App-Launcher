@@ -36,6 +36,27 @@ class InstalledAppRecord {
 }
 
 class LocalAppRegistry {
+  static const Set<String> _ignoredWindowsBinaries = {
+    'unins000.exe',
+    'uninstall.exe',
+    'crashpad_handler.exe',
+    'vc_redist.x64.exe',
+    'vc_redist.x86.exe',
+  };
+
+  static const Set<String> _ignoredLinuxFiles = {
+    'license',
+    'readme',
+    'changelog',
+    'authors',
+    'notice',
+    'copying',
+    'makefile',
+    'dockerfile',
+    'version',
+    'patents',
+  };
+
   final String _baseDir;
 
   LocalAppRegistry({String? customBaseDir})
@@ -44,9 +65,25 @@ class LocalAppRegistry {
   String get appsDirectory => p.join(_baseDir, 'apps');
   String get registryFilePath => p.join(_baseDir, 'installed_apps.json');
 
-  /// Gets the install folder for a specific app id.
+  /// Validates and returns the install folder for a specific [appId].
   String getAppInstallPath(String appId) {
-    return p.join(appsDirectory, appId);
+    final sanitizedId = p.basename(appId.trim());
+    if (sanitizedId.isEmpty || sanitizedId != appId.trim() || sanitizedId.contains('..')) {
+      throw ArgumentError.value(appId, 'appId', 'Invalid application identifier');
+    }
+    return p.join(appsDirectory, sanitizedId);
+  }
+
+  /// Checks whether an executable file or macOS `.app` bundle exists on disk.
+  static bool executableExists(String? executablePath) {
+    if (executablePath == null || executablePath.trim().isEmpty) return false;
+    if (File(executablePath).existsSync()) return true;
+    if (Platform.isMacOS &&
+        executablePath.toLowerCase().endsWith('.app') &&
+        Directory(executablePath).existsSync()) {
+      return true;
+    }
+    return false;
   }
 
   /// Loads the registry of locally installed applications.
@@ -92,6 +129,11 @@ class LocalAppRegistry {
     final registry = loadRegistry();
     registry.remove(appId);
 
+    final dir = Directory(_baseDir);
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+
     final data = <String, dynamic>{
       for (final e in registry.entries) e.key: e.value.toJson(),
     };
@@ -114,41 +156,73 @@ class LocalAppRegistry {
     if (!dir.existsSync()) return null;
 
     if (Platform.isWindows) {
-      final expectedExe = '$fallbackName.exe';
+      final expectedExe = '$fallbackName.exe'.toLowerCase();
 
-      // 1. Check direct match or recursive match
-      final entities = dir.listSync(recursive: true);
-      for (final entity in entities) {
+      // 1. Check direct match in root first
+      final rootCandidate = File(p.join(dirPath, '$fallbackName.exe'));
+      if (rootCandidate.existsSync()) {
+        return rootCandidate.path;
+      }
+
+      // 2. Check recursive match for exact expected executable name
+      final allEntities = dir.listSync(recursive: true, followLinks: false);
+      for (final entity in allEntities) {
+        if (entity is File && p.basename(entity.path).toLowerCase() == expectedExe) {
+          return entity.path;
+        }
+      }
+
+      // 3. Fallback: Only check top-level .exe files (excluding known helper/uninstaller binaries)
+      final topLevelEntities = dir.listSync(recursive: false, followLinks: false);
+      for (final entity in topLevelEntities) {
         if (entity is File && p.extension(entity.path).toLowerCase() == '.exe') {
-          if (p.basename(entity.path).toLowerCase() == expectedExe.toLowerCase()) {
+          final base = p.basename(entity.path).toLowerCase();
+          if (!_ignoredWindowsBinaries.contains(base)) {
             return entity.path;
           }
         }
       }
-
-      // 2. Any .exe found in the root of the app directory
-      for (final entity in entities) {
-        if (entity is File && p.extension(entity.path).toLowerCase() == '.exe') {
-          return entity.path;
-        }
-      }
     } else if (Platform.isMacOS) {
-      final entities = dir.listSync(recursive: true);
+      final entities = dir.listSync(recursive: true, followLinks: false);
       for (final entity in entities) {
         if (entity is Directory && entity.path.endsWith('.app')) {
+          // Prefer inner Mach-O executable if it matches fallbackName
+          final innerExe = File(p.join(entity.path, 'Contents', 'MacOS', fallbackName));
+          if (innerExe.existsSync()) {
+            return innerExe.path;
+          }
+          final macosDir = Directory(p.join(entity.path, 'Contents', 'MacOS'));
+          if (macosDir.existsSync()) {
+            final bins = macosDir.listSync(followLinks: false).whereType<File>().toList();
+            if (bins.length == 1) {
+              return bins.first.path;
+            }
+          }
           return entity.path;
         }
       }
     } else {
-      // Linux: Look for file matching fallbackName
-      final file = File(p.join(dirPath, fallbackName));
-      if (file.existsSync()) return file.path;
+      // Linux: Look for file matching fallbackName in root or subdirectories
+      final rootFile = File(p.join(dirPath, fallbackName));
+      if (rootFile.existsSync()) return rootFile.path;
 
-      // Or any non-hidden executable file
-      final entities = dir.listSync();
-      for (final entity in entities) {
-        if (entity is File && !p.basename(entity.path).contains('.')) {
+      final allEntities = dir.listSync(recursive: true, followLinks: false);
+      for (final entity in allEntities) {
+        if (entity is File && p.basename(entity.path) == fallbackName) {
           return entity.path;
+        }
+      }
+
+      // Fallback: top-level non-hidden file without extension that is not a known text/doc file
+      final topEntities = dir.listSync(recursive: false, followLinks: false);
+      for (final entity in topEntities) {
+        if (entity is File) {
+          final base = p.basename(entity.path);
+          if (!base.startsWith('.') &&
+              !base.contains('.') &&
+              !_ignoredLinuxFiles.contains(base.toLowerCase())) {
+            return entity.path;
+          }
         }
       }
     }

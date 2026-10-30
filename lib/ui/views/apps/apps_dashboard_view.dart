@@ -140,6 +140,8 @@ class AppsDashboardView extends StatelessWidget {
                               app: app,
                               onInstallOrUpdate: () => vm.installOrUpdate(app),
                               onLaunch: () => vm.launch(app),
+                              onStop: () => vm.stop(app),
+                              onUninstall: () => vm.uninstall(app),
                             );
                           },
                         );

@@ -1,16 +1,19 @@
 import 'dart:io';
+import 'package:pub_semver/pub_semver.dart';
 
 class ReleaseAsset {
   final String name;
   final String downloadUrl;
   final int sizeBytes;
   final String contentType;
+  final String? digest;
 
   const ReleaseAsset({
     required this.name,
     required this.downloadUrl,
     required this.sizeBytes,
     required this.contentType,
+    this.digest,
   });
 
   factory ReleaseAsset.fromJson(Map<String, dynamic> json) {
@@ -19,6 +22,7 @@ class ReleaseAsset {
       downloadUrl: json['browser_download_url'] as String? ?? '',
       sizeBytes: (json['size'] as num?)?.toInt() ?? 0,
       contentType: json['content_type'] as String? ?? '',
+      digest: json['digest'] as String?,
     );
   }
 }
@@ -45,8 +49,45 @@ class ReleaseInfo {
       name: json['name'] as String? ?? '',
       publishedAt: DateTime.tryParse(json['published_at'] as String? ?? '') ?? DateTime.now(),
       body: json['body'] as String? ?? '',
-      assets: rawAssets.map((e) => ReleaseAsset.fromJson(e as Map<String, dynamic>)).toList(),
+      assets: rawAssets
+          .whereType<Map<String, dynamic>>()
+          .map(ReleaseAsset.fromJson)
+          .toList(),
     );
+  }
+
+  /// Parses a version tag (e.g. "v1.2.0", "1.2.0", or "v0.5.0.Beta") into a [Version], or null if invalid.
+  static Version? tryParseVersion(String rawVersion) {
+    var cleaned = rawVersion.trim();
+    if (cleaned.startsWith('v') || cleaned.startsWith('V')) {
+      cleaned = cleaned.substring(1).trim();
+    }
+    if (cleaned.isEmpty) return null;
+    // Normalize e.g. "0.5.0.Beta" -> "0.5.0-Beta" for semver compatibility
+    cleaned = cleaned.replaceFirstMapped(
+      RegExp(r'^(\d+\.\d+\.\d+)\.([A-Za-z][A-Za-z0-9.\-]*)$'),
+      (m) => '${m[1]}-${m[2]}',
+    );
+    try {
+      return Version.parse(cleaned);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns true if [tagName] represents a newer semantic version than [currentVersion].
+  bool isNewerThan(String? currentVersion) {
+    if (currentVersion == null || currentVersion.trim().isEmpty) return true;
+    if (tagName.trim().isEmpty) return false;
+
+    final remoteVer = tryParseVersion(tagName);
+    final localVer = tryParseVersion(currentVersion);
+
+    if (remoteVer != null && localVer != null) {
+      return remoteVer > localVer;
+    }
+    // Fallback if non-semver tags are used
+    return tagName.trim() != currentVersion.trim();
   }
 
   /// Finds the binary asset archive matching the current desktop operating system.
@@ -56,7 +97,7 @@ class ReleaseInfo {
       return assets.cast<ReleaseAsset?>().firstWhere(
             (a) => a!.name.toLowerCase().contains('windows') && a.name.toLowerCase().endsWith('.zip'),
             orElse: () => assets.cast<ReleaseAsset?>().firstWhere(
-              (a) => a!.name.toLowerCase().endsWith('.zip'),
+              (a) => a!.name.toLowerCase().endsWith('.zip') && !a.name.toLowerCase().contains('macos') && !a.name.toLowerCase().contains('linux'),
               orElse: () => null,
             ),
           );

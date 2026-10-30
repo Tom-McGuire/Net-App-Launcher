@@ -5,8 +5,13 @@ import '../../../domain/models/suite_app.dart';
 
 class AppDetailsDialog extends StatelessWidget {
   final SuiteApp app;
+  final VoidCallback? onUninstall;
 
-  const AppDetailsDialog({super.key, required this.app});
+  const AppDetailsDialog({
+    super.key,
+    required this.app,
+    this.onUninstall,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +154,21 @@ class AppDetailsDialog extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (app.canLaunch && onUninstall != null) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.error,
+                        side: const BorderSide(color: AppTheme.error),
+                      ),
+                      icon: const Icon(Icons.delete_outline, size: 15),
+                      label: const Text('Uninstall'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        onUninstall!();
+                      },
+                    ),
+                    const Spacer(),
+                  ],
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('Close'),

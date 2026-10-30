@@ -7,12 +7,16 @@ class AppCardItem extends StatelessWidget {
   final SuiteApp app;
   final VoidCallback onInstallOrUpdate;
   final VoidCallback onLaunch;
+  final VoidCallback? onStop;
+  final VoidCallback? onUninstall;
 
   const AppCardItem({
     super.key,
     required this.app,
     required this.onInstallOrUpdate,
     required this.onLaunch,
+    this.onStop,
+    this.onUninstall,
   });
 
   @override
@@ -78,12 +82,15 @@ class AppCardItem extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'View Release Notes',
+                  tooltip: 'View Details & Options',
                   icon: const Icon(Icons.info_outline, size: 16),
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (_) => AppDetailsDialog(app: app),
+                      builder: (_) => AppDetailsDialog(
+                        app: app,
+                        onUninstall: onUninstall,
+                      ),
                     );
                   },
                 ),
@@ -201,6 +208,24 @@ class AppCardItem extends StatelessWidget {
                       style: const TextStyle(fontSize: 11),
                     ),
                     onPressed: onInstallOrUpdate,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+
+                // Stop Button (when running)
+                if (app.isRunning && onStop != null && !isDownloading) ...[
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.error,
+                      side: const BorderSide(color: AppTheme.error),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.stop_circle_outlined, size: 14),
+                    label: const Text(
+                      'Stop',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: onStop,
                   ),
                   const SizedBox(width: 8),
                 ],

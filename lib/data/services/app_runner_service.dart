@@ -1,33 +1,52 @@
 import 'dart:io';
+import 'local_app_registry.dart';
 
 class AppRunnerService {
   final Map<String, Process> _runningProcesses = {};
 
   bool isAppRunning(String appId) => _runningProcesses.containsKey(appId);
 
-  /// Launches an application process in detached mode.
+  /// Launches an application process and tracks its running state.
   Future<Process> launchApp({
     required String appId,
     required String executablePath,
     List<String> arguments = const [],
     void Function()? onExited,
   }) async {
-    final file = File(executablePath);
-    if (!file.existsSync()) {
+    if (!LocalAppRegistry.executableExists(executablePath)) {
       throw Exception('Target executable does not exist at $executablePath');
     }
 
-    final process = await Process.start(
-      executablePath,
-      arguments,
-      mode: ProcessStartMode.detached,
-      workingDirectory: file.parent.path,
-    );
+    late final Process process;
+    if (Platform.isMacOS &&
+        executablePath.toLowerCase().endsWith('.app') &&
+        Directory(executablePath).existsSync()) {
+      process = await Process.start(
+        'open',
+        ['-W', '-a', executablePath, if (arguments.isNotEmpty) ...['--args', ...arguments]],
+        mode: ProcessStartMode.normal,
+      );
+    } else {
+      final file = File(executablePath);
+      process = await Process.start(
+        executablePath,
+        arguments,
+        mode: ProcessStartMode.normal,
+        workingDirectory: file.parent.path,
+      );
+    }
+
+    // Drain stdout and stderr streams so child process never blocks on full OS pipes
+    process.stdout.drain<void>().catchError((_) {});
+    process.stderr.drain<void>().catchError((_) {});
 
     _runningProcesses[appId] = process;
 
     // Track exit
-    process.exitCode.then((code) {
+    process.exitCode.then((_) {
+      _runningProcesses.remove(appId);
+      onExited?.call();
+    }).catchError((_) {
       _runningProcesses.remove(appId);
       onExited?.call();
     });

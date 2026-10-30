@@ -10,13 +10,27 @@ class LauncherSelfUpdateDialog extends StatelessWidget {
 
   const LauncherSelfUpdateDialog({super.key, required this.release});
 
+  /// Validates and opens an external HTTPS URL without invoking a command shell (`cmd.exe`).
+  static bool isValidExternalHttpsUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || !uri.hasScheme || !uri.hasAuthority) return false;
+    if (uri.scheme.toLowerCase() != 'https') return false;
+    // Reject control characters or shell metacharacters
+    if (RegExp(r'[\r\n\t"&|<>^`]').hasMatch(url)) return false;
+    return true;
+  }
+
   static void openUrl(String url) {
+    final sanitized = url.trim();
+    if (!isValidExternalHttpsUrl(sanitized)) return;
+
     if (Platform.isWindows) {
-      Process.run('cmd', ['/c', 'start', '', url]);
+      // Avoid cmd.exe (/c start) to prevent shell metacharacter injection
+      Process.run('rundll32.exe', ['url.dll,FileProtocolHandler', sanitized]);
     } else if (Platform.isMacOS) {
-      Process.run('open', [url]);
+      Process.run('open', [sanitized]);
     } else if (Platform.isLinux) {
-      Process.run('xdg-open', [url]);
+      Process.run('xdg-open', [sanitized]);
     }
   }
 
@@ -148,7 +162,8 @@ class LauncherSelfUpdateDialog extends StatelessWidget {
                     icon: const Icon(Icons.open_in_browser, size: 15),
                     label: const Text('View on GitHub'),
                     onPressed: () {
-                      final url = 'https://github.com/${SuiteConstants.defaultGithubOwner}/${SuiteConstants.launcherRepoName}/releases/tag/${release.tagName}';
+                      final encodedTag = Uri.encodeComponent(release.tagName);
+                      final url = 'https://github.com/${SuiteConstants.defaultGithubOwner}/${SuiteConstants.launcherRepoName}/releases/tag/$encodedTag';
                       openUrl(url);
                     },
                   ),

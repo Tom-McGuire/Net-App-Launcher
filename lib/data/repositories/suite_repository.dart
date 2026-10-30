@@ -28,11 +28,15 @@ class SuiteRepository {
         _runnerService = runnerService ?? AppRunnerService(),
         _dependencyService = dependencyService ?? DependencyService();
 
+  bool get isRateLimited => _gitHubService.isRateLimited;
+
   /// Checks whether a newer release of the Launcher itself is published on GitHub.
   Future<ReleaseInfo?> checkLauncherSelfUpdate() async {
     try {
       final release = await _gitHubService.fetchLatestRelease(SuiteConstants.launcherRepoName);
-      if (release != null && release.tagName.isNotEmpty && release.tagName != SuiteConstants.currentVersion) {
+      if (release != null &&
+          release.tagName.isNotEmpty &&
+          release.isNewerThan(SuiteConstants.currentVersion)) {
         return release;
       }
     } catch (_) {}
@@ -70,17 +74,17 @@ class SuiteRepository {
 
       // Determine executable path
       String? exePath = installed?.executablePath;
-      if (exePath == null && installed != null) {
+      if (!LocalAppRegistry.executableExists(exePath) && installed != null) {
         exePath = _registry.findExecutableInDirectory(installed.installPath, def.defaultExecutableName);
       }
 
-      // Check if binary actually exists on disk
-      final isInstalledLocally = exePath != null && File(exePath).existsSync();
+      // Check if binary or .app bundle actually exists on disk
+      final isInstalledLocally = LocalAppRegistry.executableExists(exePath);
 
-      // Determine installation & update status
+      // Determine installation & update status using semantic version comparison
       AppStatus status = AppStatus.notInstalled;
       if (isInstalledLocally) {
-        if (release != null && release.tagName != installed?.version) {
+        if (release != null && release.isNewerThan(installed?.version)) {
           status = AppStatus.updateAvailable;
         } else {
           status = AppStatus.installed;
@@ -122,6 +126,10 @@ class SuiteRepository {
       throw Exception('Cannot install ${app.name}: No release available');
     }
 
+    if (_runnerService.isAppRunning(app.id)) {
+      _runnerService.terminateApp(app.id);
+    }
+
     return _installerService.installOrUpdateApp(
       appId: app.id,
       defaultExecutableName: app.definition.defaultExecutableName,
@@ -134,19 +142,27 @@ class SuiteRepository {
   /// Launches a suite app.
   Future<Process> launchApp(SuiteApp app, {void Function()? onExited}) async {
     final exe = app.executablePath;
-    if (exe == null || !File(exe).existsSync()) {
+    if (!LocalAppRegistry.executableExists(exe)) {
       throw Exception('Cannot launch ${app.name}: Executable not found');
     }
 
     return _runnerService.launchApp(
       appId: app.id,
-      executablePath: exe,
+      executablePath: exe!,
       onExited: onExited,
     );
   }
 
+  /// Stops a running suite application.
+  void terminateApp(String appId) {
+    _runnerService.terminateApp(appId);
+  }
+
   /// Uninstalls an application from local disk.
   void uninstallApp(String appId) {
+    if (_runnerService.isAppRunning(appId)) {
+      _runnerService.terminateApp(appId);
+    }
     _registry.removeInstallation(appId, deleteFiles: true);
   }
 }

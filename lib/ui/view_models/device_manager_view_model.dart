@@ -149,27 +149,42 @@ class DeviceManagerViewModel extends ChangeNotifier {
   }
 
   void importFromCsv(String csvContent) {
-    final list = DeviceExportService.importFromCsv(csvContent);
-    if (list.isNotEmpty) {
-      _repository.importDevices(list);
-      _feedbackMessage = 'Successfully imported ${list.length} devices from CSV';
-      loadDevices();
-    } else {
-      _feedbackMessage = 'No valid device records found in CSV';
+    try {
+      final list = DeviceExportService.importFromCsv(csvContent);
+      if (list.isNotEmpty) {
+        _repository.importDevices(list);
+        _feedbackMessage = 'Successfully imported ${list.length} devices from CSV';
+        loadDevices();
+      } else {
+        _feedbackMessage = 'No valid device records found in CSV';
+        notifyListeners();
+      }
+    } catch (e) {
+      _feedbackMessage = 'Failed to parse CSV: $e';
       notifyListeners();
     }
   }
 
   void importFromJson(String jsonContent) {
-    final list = DeviceExportService.importFromJson(jsonContent);
-    if (list.isNotEmpty) {
-      _repository.importDevices(list);
-      _feedbackMessage = 'Successfully imported ${list.length} devices from JSON';
-      loadDevices();
-    } else {
-      _feedbackMessage = 'No valid device records found in JSON';
+    try {
+      final list = DeviceExportService.importFromJson(jsonContent);
+      if (list.isNotEmpty) {
+        _repository.importDevices(list);
+        _feedbackMessage = 'Successfully imported ${list.length} devices from JSON';
+        loadDevices();
+      } else {
+        _feedbackMessage = 'No valid device records found in JSON';
+        notifyListeners();
+      }
+    } catch (e) {
+      _feedbackMessage = 'Failed to parse JSON: $e';
       notifyListeners();
     }
+  }
+
+  void setFeedbackMessage(String message) {
+    _feedbackMessage = message;
+    notifyListeners();
   }
 
   String exportCsv() => _repository.exportToCsv();
