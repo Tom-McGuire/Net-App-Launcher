@@ -55,3 +55,14 @@ net-app-launcher/
 
 Each application in the suite uses the shared library `network_suite_shared` located at `C:\Users\tommc\Projects\network_suite_shared`.
 Even if this Launcher application is never installed or opened, any suite application can create, read, and write to `shared_devices.db` on its own.
+
+---
+
+## Security & Code Signing Notes
+
+> **Note on Windows / macOS Security Prompts:**
+> These tools are free and independent projects and are not yet code-signed with expensive commercial certificates:
+>
+> - **Windows**: If SmartScreen appears, click **"More info"** → **"Run anyway"**.
+> - **macOS**: Right-click the `.app` file, select **Open**, and confirm the prompt (or run `xattr -c <AppName>.app` in Terminal).
+
