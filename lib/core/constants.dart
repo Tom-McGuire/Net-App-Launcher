@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.6.5.Beta';
+  static const String currentVersion = 'v0.6.6.Beta';
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
