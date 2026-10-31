@@ -17,12 +17,14 @@ class DeviceRepository {
   List<SharedDevice> getAllDevices({
     String? query,
     String? deviceType,
+    bool hideDefaultNamed = false,
     String sortBy = 'updated_at',
     bool ascending = false,
   }) {
     return _database.getAllDevices(
       query: query,
       deviceType: deviceType,
+      hideDefaultNamed: hideDefaultNamed,
       sortBy: sortBy,
       ascending: ascending,
     );

@@ -32,7 +32,7 @@ class DeviceManagerView extends StatelessWidget {
             children: [
               // Search Input
               SizedBox(
-                width: 260,
+                width: 240,
                 height: 32,
                 child: TextField(
                   style: const TextStyle(fontSize: 12),
@@ -47,6 +47,60 @@ class DeviceManagerView extends StatelessWidget {
                         : null,
                   ),
                   onChanged: vm.setSearchQuery,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Toggle: Hide Unnamed Devices (On by default)
+              Tooltip(
+                message: vm.hideDefaultNamed
+                    ? 'Hiding devices with default MAC address labels (Click to show all)'
+                    : 'Showing all devices (Click to hide devices with default MAC labels)',
+                child: InkWell(
+                  onTap: vm.toggleHideDefaultNamed,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: vm.hideDefaultNamed
+                          ? AppTheme.primaryAccent.withValues(alpha: 0.15)
+                          : AppTheme.inputFill,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: vm.hideDefaultNamed
+                            ? AppTheme.primaryAccent.withValues(alpha: 0.6)
+                            : AppTheme.border,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          vm.hideDefaultNamed
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 14,
+                          color: vm.hideDefaultNamed
+                              ? AppTheme.primaryAccent
+                              : Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Hide Unnamed',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: vm.hideDefaultNamed
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: vm.hideDefaultNamed
+                                ? AppTheme.primaryAccent
+                                : Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -525,7 +579,9 @@ class DeviceManagerView extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Showing ${vm.devices.length} of ${vm.totalCount} devices',
+                  vm.hideDefaultNamed
+                      ? 'Showing ${vm.devices.length} of ${vm.totalCount} devices (unnamed hidden)'
+                      : 'Showing ${vm.devices.length} of ${vm.totalCount} devices',
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
                 const SizedBox(width: 16),
@@ -562,6 +618,61 @@ class DeviceManagerView extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, DeviceManagerViewModel vm) {
+    if (vm.totalCount > 0 && vm.hideDefaultNamed) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.filter_list_off,
+                  size: 56,
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.6),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No User-Named Devices Found',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'There are ${vm.totalCount} devices in the inventory, but they have default MAC labels and "Hide Unnamed" is active.\n'
+                  'Toggle off "Hide Unnamed" to view and label scanned devices, or register a new device.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => vm.setHideDefaultNamed(false),
+                      icon: const Icon(Icons.visibility_outlined, size: 15),
+                      label: const Text('Show Unnamed Devices'),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AddDeviceDialog(onAdd: vm.addDevice),
+                        );
+                      },
+                      icon: const Icon(Icons.add, size: 15),
+                      label: const Text('Add Device'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -585,7 +696,7 @@ class DeviceManagerView extends StatelessWidget {
                 'Devices discovered by arp-scout or packet-inspector will automatically populate here.\n'
                 'You can also manually register devices or import a list from CSV/JSON.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(

@@ -78,5 +78,31 @@ void main() {
 
     // Verify updated name
     expect(find.text('Distribution Switch A'), findsOneWidget);
+
+    // Verify 'Hide Unnamed' toggle is on by default
+    expect(find.text('Hide Unnamed'), findsOneWidget);
+    expect(deviceVm.hideDefaultNamed, isTrue);
+
+    // Add an unnamed scanned device
+    deviceVm.addDevice(
+      rawMac: '11:22:33:44:55:66',
+      name: '', // default name 'Device 11:22:33:44:55:66'
+    );
+    await tester.pump();
+
+    // Default-named device is hidden by default
+    expect(find.text('11:22:33:44:55:66'), findsNothing);
+
+    // Tap 'Hide Unnamed' toggle to show unnamed devices
+    await tester.tap(find.text('Hide Unnamed'));
+    await tester.pump();
+    expect(deviceVm.hideDefaultNamed, isFalse);
+    expect(find.text('11:22:33:44:55:66'), findsOneWidget);
+
+    // Tap again to hide them
+    await tester.tap(find.text('Hide Unnamed'));
+    await tester.pump();
+    expect(deviceVm.hideDefaultNamed, isTrue);
+    expect(find.text('11:22:33:44:55:66'), findsNothing);
   });
 }

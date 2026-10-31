@@ -10,6 +10,7 @@ import 'package:net_app_launcher/domain/models/release_info.dart';
 import 'package:net_app_launcher/ui/views/launcher_self_update_dialog.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart';
 
 void main() {
   group('ReleaseInfo Asset Matching & Semantic Versioning', () {
@@ -292,6 +293,76 @@ void main() {
     test('handles malformed JSON gracefully without throwing', () {
       final imported = DeviceExportService.importFromJson('{not valid json');
       expect(imported, isEmpty);
+    });
+
+    test('accurately identifies custom vs default MAC label names', () {
+      final now = DateTime.now();
+      final custom1 = SharedDevice(
+        macAddress: '00:1A:2B:3C:4D:5E',
+        name: 'Living Room Apple TV',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final custom2 = SharedDevice(
+        macAddress: '00:1A:2B:3C:4D:5E',
+        name: 'Switch 1',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final default1 = SharedDevice(
+        macAddress: '00:1A:2B:3C:4D:5E',
+        name: 'Device 00:1A:2B:3C:4D:5E',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final default2 = SharedDevice(
+        macAddress: '00:1A:2B:3C:4D:5E',
+        name: '00:1A:2B:3C:4D:5E',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final default3 = SharedDevice(
+        macAddress: '00:1A:2B:3C:4D:5E',
+        name: 'Unknown Device',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      expect(custom1.hasCustomName, isTrue);
+      expect(custom2.hasCustomName, isTrue);
+      expect(default1.hasCustomName, isFalse);
+      expect(default2.hasCustomName, isFalse);
+      expect(default3.hasCustomName, isFalse);
+    });
+
+    test('SharedDeviceDatabase filters default-named devices when hideDefaultNamed is true', () {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      final now = DateTime.now();
+
+      db.upsertDevice(SharedDevice(
+        macAddress: '00:11:22:33:44:55',
+        name: 'Core Router',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      db.upsertDevice(SharedDevice(
+        macAddress: 'AA:BB:CC:DD:EE:FF',
+        name: 'Device AA:BB:CC:DD:EE:FF',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      ));
+
+      expect(db.getAllDevices(hideDefaultNamed: false).length, 2);
+      final filtered = db.getAllDevices(hideDefaultNamed: true);
+      expect(filtered.length, 1);
+      expect(filtered.first.name, 'Core Router');
     });
   });
 }

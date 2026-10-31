@@ -129,10 +129,12 @@ class SharedDeviceDatabase {
     return _rowToDevice(rows.first);
   }
 
-  /// Retrieves all registered devices, with optional search query and category filtering.
+  /// Retrieves all registered devices, with optional search query, category filtering,
+  /// and option to hide devices that only have default MAC address labels.
   List<SharedDevice> getAllDevices({
     String? query,
     String? deviceType,
+    bool hideDefaultNamed = false,
     String sortBy = 'updated_at',
     bool ascending = false,
   }) {
@@ -174,7 +176,11 @@ class SharedDeviceDatabase {
       params,
     );
 
-    return rows.map(_rowToDevice).toList();
+    final devices = rows.map(_rowToDevice);
+    if (hideDefaultNamed) {
+      return devices.where((d) => d.hasCustomName).toList();
+    }
+    return devices.toList();
   }
 
   /// Inserts or updates a device record.

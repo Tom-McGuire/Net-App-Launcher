@@ -18,6 +18,7 @@ class DeviceManagerViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String _searchQuery = '';
   String _selectedCategory = 'all';
+  bool _hideDefaultNamed = true;
   String _sortBy = 'updated_at';
   bool _sortAscending = false;
   SharedDevice? _selectedDevice;
@@ -28,6 +29,7 @@ class DeviceManagerViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   String get selectedCategory => _selectedCategory;
+  bool get hideDefaultNamed => _hideDefaultNamed;
   String get sortBy => _sortBy;
   bool get sortAscending => _sortAscending;
   SharedDevice? get selectedDevice => _selectedDevice;
@@ -53,6 +55,7 @@ class DeviceManagerViewModel extends ChangeNotifier {
     _devices = _repository.getAllDevices(
       query: _searchQuery,
       deviceType: _selectedCategory,
+      hideDefaultNamed: _hideDefaultNamed,
       sortBy: _sortBy,
       ascending: _sortAscending,
     );
@@ -68,6 +71,17 @@ class DeviceManagerViewModel extends ChangeNotifier {
   void setSelectedCategory(String category) {
     _selectedCategory = category;
     loadDevices();
+  }
+
+  void setHideDefaultNamed(bool hide) {
+    if (_hideDefaultNamed != hide) {
+      _hideDefaultNamed = hide;
+      loadDevices();
+    }
+  }
+
+  void toggleHideDefaultNamed() {
+    setHideDefaultNamed(!_hideDefaultNamed);
   }
 
   void setSorting(String column) {
