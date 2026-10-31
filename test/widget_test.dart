@@ -104,5 +104,23 @@ void main() {
     await tester.pump();
     expect(deviceVm.hideDefaultNamed, isTrue);
     expect(find.text('11:22:33:44:55:66'), findsNothing);
+
+    // Update category of discovered device
+    deviceVm.updateDeviceCategory('00:1A:2B:3C:4D:5E', 'server');
+    await tester.pump();
+    expect(find.text('Server'), findsWidgets);
+
+    // Create custom category and assign to device
+    deviceVm.createCustomCategory(
+      id: 'firewall',
+      label: 'Firewall / UTM',
+      iconName: 'security',
+    );
+    await tester.pump();
+    expect(find.text('Firewall / UTM'), findsOneWidget); // In filter chips
+
+    deviceVm.updateDeviceCategory('00:1A:2B:3C:4D:5E', 'firewall');
+    await tester.pump();
+    expect(find.text('Firewall / UTM'), findsWidgets); // In filter chip and table row
   });
 }

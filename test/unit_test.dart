@@ -364,5 +364,66 @@ void main() {
       expect(filtered.length, 1);
       expect(filtered.first.name, 'Core Router');
     });
+
+    test('SharedDeviceDatabase supports updating device category and custom categories', () {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      final now = DateTime.now();
+
+      // 1. Insert a discovered device with default/inferred category
+      db.upsertDevice(SharedDevice(
+        macAddress: '00:11:22:33:44:55',
+        name: 'Device 00:11:22:33:44:55',
+        deviceType: 'other',
+        sourceApp: 'arp-scout',
+        createdAt: now,
+        updatedAt: now,
+      ));
+
+      // 2. Change category to built-in 'router' and assign friendly name
+      db.updateDeviceDetails(
+        '00:11:22:33:44:55',
+        name: 'Gateway Router',
+        deviceType: 'router',
+      );
+
+      var updated = db.getDeviceByMac('00:11:22:33:44:55');
+      expect(updated, isNotNull);
+      expect(updated!.name, 'Gateway Router');
+      expect(updated.deviceType, 'router');
+
+      // 3. Create a custom category 'firewall'
+      db.upsertCustomCategory(CustomDeviceCategory(
+        id: 'firewall',
+        label: 'Firewall / UTM',
+        iconName: 'security',
+        colorHex: '#FF5722',
+        createdAt: now,
+        updatedAt: now,
+      ));
+
+      final customCats = db.getCustomCategories();
+      expect(customCats.length, 1);
+      expect(customCats.first.id, 'firewall');
+      expect(customCats.first.label, 'Firewall / UTM');
+
+      // 4. Assign custom category to the device
+      db.updateDeviceDetails(
+        '00:11:22:33:44:55',
+        deviceType: 'firewall',
+      );
+
+      updated = db.getDeviceByMac('00:11:22:33:44:55');
+      expect(updated!.deviceType, 'firewall');
+
+      // 5. Test UnifiedDeviceCategory resolution
+      final unified = db.getUnifiedCategories();
+      expect(unified.any((c) => c.key == 'firewall' && c.isCustom), isTrue);
+
+      // 6. Delete custom category and ensure device falls back to 'other'
+      db.deleteCustomCategory('firewall');
+      expect(db.getCustomCategories(), isEmpty);
+      updated = db.getDeviceByMac('00:11:22:33:44:55');
+      expect(updated!.deviceType, 'other');
+    });
   });
 }

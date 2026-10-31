@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
 import '../../view_models/device_manager_view_model.dart';
 import 'add_device_dialog.dart';
+import 'create_category_dialog.dart';
 import 'edit_device_dialog.dart';
 
 class DeviceManagerView extends StatelessWidget {
@@ -112,8 +113,55 @@ class DeviceManagerView extends StatelessWidget {
                   child: Row(
                     children: [
                       _buildCategoryChip(context, vm, 'all', 'All Devices', Icons.devices),
-                      ...DeviceCategory.values.map(
-                        (c) => _buildCategoryChip(context, vm, c.key, c.label, c.icon),
+                      ...vm.categories.map(
+                        (c) => _buildCategoryChip(
+                          context,
+                          vm,
+                          c.key,
+                          c.label,
+                          c.icon,
+                          color: c.color,
+                          isCustom: c.isCustom,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Tooltip(
+                        message: 'Create Custom Category',
+                        child: InkWell(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => CreateCategoryDialog(
+                                onCreate: vm.createCustomCategory,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            height: 26,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.inputFill,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.border),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, size: 12, color: AppTheme.primaryAccent),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.primaryAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -251,25 +299,45 @@ class DeviceManagerView extends StatelessWidget {
     DeviceManagerViewModel vm,
     String key,
     String label,
-    IconData icon,
-  ) {
+    IconData icon, {
+    Color? color,
+    bool isCustom = false,
+  }) {
     final isSelected = vm.selectedCategory == key;
+    final accentColor = color ?? AppTheme.primaryAccent;
+
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: FilterChip(
         avatar: Icon(
           icon,
           size: 13,
-          color: isSelected ? AppTheme.primaryAccent : Colors.grey,
+          color: isSelected ? accentColor : Colors.grey,
         ),
-        label: Text(label, style: const TextStyle(fontSize: 11)),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11)),
+            if (isCustom) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
         selected: isSelected,
         onSelected: (_) => vm.setSelectedCategory(key),
         visualDensity: VisualDensity.compact,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        selectedColor: AppTheme.primaryAccent.withValues(alpha: 0.25),
+        selectedColor: accentColor.withValues(alpha: 0.25),
         side: BorderSide(
-          color: isSelected ? AppTheme.primaryAccent : AppTheme.border,
+          color: isSelected ? accentColor : AppTheme.border,
         ),
       ),
     );
@@ -357,7 +425,7 @@ class DeviceManagerView extends StatelessWidget {
     required bool isSelected,
     required DateFormat dateFormat,
   }) {
-    final cat = device.category;
+    final cat = vm.resolveCategory(device.deviceType);
 
     return InkWell(
       onTap: () => vm.selectDevice(device),
@@ -366,7 +434,18 @@ class DeviceManagerView extends StatelessWidget {
           context: context,
           builder: (_) => EditDeviceDialog(
             device: device,
-            onSave: (newName) => vm.updateDeviceName(device.macAddress, newName),
+            onSave: ({
+              required String name,
+              required String category,
+              String? vendor,
+              String? notes,
+            }) => vm.updateDeviceDetails(
+              mac: device.macAddress,
+              name: name,
+              category: category,
+              vendor: vendor,
+              notes: notes,
+            ),
           ),
         );
       },
@@ -408,13 +487,24 @@ class DeviceManagerView extends StatelessWidget {
                   const SizedBox(width: 6),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 13, color: Colors.grey),
-                    tooltip: 'Rename device',
+                    tooltip: 'Edit device details',
                     onPressed: () {
                       showDialog(
                         context: context,
                         builder: (_) => EditDeviceDialog(
                           device: device,
-                          onSave: (newName) => vm.updateDeviceName(device.macAddress, newName),
+                          onSave: ({
+                            required String name,
+                            required String category,
+                            String? vendor,
+                            String? notes,
+                          }) => vm.updateDeviceDetails(
+                            mac: device.macAddress,
+                            name: name,
+                            category: category,
+                            vendor: vendor,
+                            notes: notes,
+                          ),
                         ),
                       );
                     },
@@ -423,21 +513,99 @@ class DeviceManagerView extends StatelessWidget {
               ),
             ),
 
-            // Category Badge
+            // Category Badge with interactive quick-change popup
             SizedBox(
               width: 140,
-              child: Row(
-                children: [
-                  Icon(cat.icon, size: 13, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      cat.label,
-                      style: const TextStyle(fontSize: 11),
-                      overflow: TextOverflow.ellipsis,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: PopupMenuButton<String>(
+                  tooltip: 'Change category for ${device.name}',
+                  offset: const Offset(0, 24),
+                  onSelected: (newCat) {
+                    if (newCat == '__new__') {
+                      showDialog(
+                        context: context,
+                        builder: (_) => CreateCategoryDialog(
+                          onCreate: ({
+                            required String id,
+                            required String label,
+                            String iconName = 'devices_other',
+                            String? colorHex,
+                          }) {
+                            vm.createCustomCategory(
+                              id: id,
+                              label: label,
+                              iconName: iconName,
+                              colorHex: colorHex,
+                            );
+                            vm.updateDeviceCategory(device.macAddress, id);
+                          },
+                        ),
+                      );
+                    } else {
+                      vm.updateDeviceCategory(device.macAddress, newCat);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    ...vm.categories.map((c) => PopupMenuItem<String>(
+                      value: c.key,
+                      height: 32,
+                      child: Row(
+                        children: [
+                          Icon(c.icon, size: 14, color: c.color ?? AppTheme.primaryAccent),
+                          const SizedBox(width: 8),
+                          Text(c.label, style: const TextStyle(fontSize: 12)),
+                          if (c.key == cat.key) ...[
+                            const Spacer(),
+                            const Icon(Icons.check, size: 14, color: AppTheme.primaryAccent),
+                          ],
+                        ],
+                      ),
+                    )),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: '__new__',
+                      height: 32,
+                      child: Row(
+                        children: [
+                          Icon(Icons.add, size: 14, color: AppTheme.primaryAccent),
+                          SizedBox(width: 8),
+                          Text('New Category...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (cat.color ?? AppTheme.primaryAccent).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: (cat.color ?? AppTheme.primaryAccent).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(cat.icon, size: 12, color: cat.color ?? AppTheme.primaryAccent),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            cat.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cat.color ?? Colors.grey[200],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(Icons.arrow_drop_down, size: 13, color: Colors.grey[500]),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
 
@@ -529,11 +697,31 @@ class DeviceManagerView extends StatelessWidget {
               color: AppTheme.surfaceHigh,
               child: Row(
                 children: [
-                  Icon(selected.category.icon, size: 16, color: AppTheme.primaryAccent),
+                  Icon(
+                    vm.resolveCategory(selected.deviceType).icon,
+                    size: 16,
+                    color: vm.resolveCategory(selected.deviceType).color ?? AppTheme.primaryAccent,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '${selected.macAddress} • ${selected.name}',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (vm.resolveCategory(selected.deviceType).color ?? AppTheme.primaryAccent).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      vm.resolveCategory(selected.deviceType).label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: vm.resolveCategory(selected.deviceType).color ?? AppTheme.primaryAccent,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Text(
@@ -553,13 +741,24 @@ class DeviceManagerView extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     ),
                     icon: const Icon(Icons.edit, size: 13),
-                    label: const Text('Rename Device', style: TextStyle(fontSize: 11)),
+                    label: const Text('Edit Details', style: TextStyle(fontSize: 11)),
                     onPressed: () {
                       showDialog(
                         context: context,
                         builder: (_) => EditDeviceDialog(
                           device: selected,
-                          onSave: (newName) => vm.updateDeviceName(selected.macAddress, newName),
+                          onSave: ({
+                            required String name,
+                            required String category,
+                            String? vendor,
+                            String? notes,
+                          }) => vm.updateDeviceDetails(
+                            mac: selected.macAddress,
+                            name: name,
+                            category: category,
+                            vendor: vendor,
+                            notes: notes,
+                          ),
                         ),
                       );
                     },

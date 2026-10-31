@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
+import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
+import '../../view_models/device_manager_view_model.dart';
+import 'create_category_dialog.dart';
 
 class AddDeviceDialog extends StatefulWidget {
   final void Function({
@@ -23,7 +26,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
   final _vendorController = TextEditingController();
   final _notesController = TextEditingController();
 
-  DeviceCategory _selectedCategory = DeviceCategory.other;
+  String _selectedCategoryKey = 'other';
   String? _macError;
 
   @override
@@ -50,7 +53,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
       final detectedVendor = OuiLookup.lookupVendor(clean);
       if (detectedVendor != 'Unknown Vendor' && _vendorController.text.isEmpty) {
         _vendorController.text = detectedVendor;
-        _selectedCategory = OuiLookup.inferCategory(detectedVendor);
+        _selectedCategoryKey = OuiLookup.inferCategory(detectedVendor).key;
         setState(() {});
       }
     }
@@ -72,7 +75,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
     widget.onAdd(
       rawMac: rawMac,
       name: name,
-      category: _selectedCategory.key,
+      category: _selectedCategoryKey,
       vendor: _vendorController.text.trim().isNotEmpty ? _vendorController.text.trim() : null,
       notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
     );
@@ -82,6 +85,17 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<DeviceManagerViewModel>();
+    final categories = vm.categories;
+
+    // Ensure selectedCategoryKey exists in list
+    if (!categories.any((c) => c.key == _selectedCategoryKey) && categories.isNotEmpty) {
+      final resolved = vm.resolveCategory(_selectedCategoryKey);
+      if (!categories.any((c) => c.key == resolved.key)) {
+        categories.add(resolved);
+      }
+    }
+
     return Dialog(
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
@@ -154,26 +168,69 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
 
                 // Category & Hardware Vendor Row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Category Dropdown
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Category',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              const Text(
+                                'Category',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              const Spacer(),
+                              InkWell(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => CreateCategoryDialog(
+                                      onCreate: ({
+                                        required String id,
+                                        required String label,
+                                        String iconName = 'devices_other',
+                                        String? colorHex,
+                                      }) {
+                                        vm.createCustomCategory(
+                                          id: id,
+                                          label: label,
+                                          iconName: iconName,
+                                          colorHex: colorHex,
+                                        );
+                                        setState(() {
+                                          _selectedCategoryKey = id.trim().toLowerCase();
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  '+ Custom',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.primaryAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<DeviceCategory>(
-                            initialValue: _selectedCategory,
+                          DropdownButtonFormField<String>(
+                            value: _selectedCategoryKey,
                             decoration: const InputDecoration(),
-                            items: DeviceCategory.values.map((cat) {
-                              return DropdownMenuItem(
-                                value: cat,
+                            items: categories.map((cat) {
+                              return DropdownMenuItem<String>(
+                                value: cat.key,
                                 child: Row(
                                   children: [
-                                    Icon(cat.icon, size: 14, color: AppTheme.primaryAccent),
+                                    Icon(
+                                      cat.icon,
+                                      size: 14,
+                                      color: cat.color ?? AppTheme.primaryAccent,
+                                    ),
                                     const SizedBox(width: 8),
                                     Text(cat.label, style: const TextStyle(fontSize: 12)),
                                   ],
@@ -181,7 +238,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _selectedCategory = val);
+                              if (val != null) setState(() => _selectedCategoryKey = val);
                             },
                           ),
                         ],

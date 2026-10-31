@@ -14,6 +14,8 @@ class DeviceManagerViewModel extends ChangeNotifier {
   }
 
   List<SharedDevice> _devices = [];
+  List<UnifiedDeviceCategory> _categories = [];
+  List<CustomDeviceCategory> _customCategories = [];
   int _totalCount = 0;
   bool _isLoading = false;
   String _searchQuery = '';
@@ -25,6 +27,8 @@ class DeviceManagerViewModel extends ChangeNotifier {
   String? _feedbackMessage;
 
   List<SharedDevice> get devices => _devices;
+  List<UnifiedDeviceCategory> get categories => _categories;
+  List<CustomDeviceCategory> get customCategories => _customCategories;
   int get totalCount => _totalCount;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
@@ -52,6 +56,8 @@ class DeviceManagerViewModel extends ChangeNotifier {
   }
 
   void loadDevices() {
+    _customCategories = _repository.getCustomCategories();
+    _categories = _repository.getUnifiedCategories();
     _devices = _repository.getAllDevices(
       query: _searchQuery,
       deviceType: _selectedCategory,
@@ -61,6 +67,11 @@ class DeviceManagerViewModel extends ChangeNotifier {
     );
     _totalCount = _repository.getDeviceCount();
     notifyListeners();
+  }
+
+  /// Resolves any device category key into a [UnifiedDeviceCategory] with icon and label.
+  UnifiedDeviceCategory resolveCategory(String? key) {
+    return UnifiedDeviceCategory.resolve(key, customCategories: _customCategories);
   }
 
   void setSearchQuery(String query) {
@@ -111,6 +122,66 @@ class DeviceManagerViewModel extends ChangeNotifier {
     if (_selectedDevice?.macAddress == SharedDevice.normalizeMac(mac)) {
       _selectedDevice = _repository.getDeviceByMac(mac);
     }
+  }
+
+  /// Updates full device details (name, category/deviceType, vendor, notes).
+  void updateDeviceDetails({
+    required String mac,
+    String? name,
+    String? category,
+    String? vendor,
+    String? notes,
+  }) {
+    _repository.updateDeviceDetails(
+      mac,
+      name: name,
+      deviceType: category,
+      vendor: vendor,
+      notes: notes,
+    );
+    _feedbackMessage = 'Updated details for $mac';
+    loadDevices();
+
+    if (_selectedDevice?.macAddress == SharedDevice.normalizeMac(mac)) {
+      _selectedDevice = _repository.getDeviceByMac(mac);
+    }
+  }
+
+  /// Convenience method to quickly assign or change category for a device.
+  void updateDeviceCategory(String mac, String newCategory) {
+    updateDeviceDetails(mac: mac, category: newCategory);
+  }
+
+  /// Creates a new user-defined custom device category.
+  void createCustomCategory({
+    required String id,
+    required String label,
+    String iconName = 'devices_other',
+    String? colorHex,
+  }) {
+    final now = DateTime.now();
+    final cleanId = id.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    final cat = CustomDeviceCategory(
+      id: cleanId,
+      label: label.trim(),
+      iconName: iconName,
+      colorHex: colorHex,
+      createdAt: now,
+      updatedAt: now,
+    );
+    _repository.upsertCustomCategory(cat);
+    _feedbackMessage = 'Created category "${label.trim()}"';
+    loadDevices();
+  }
+
+  /// Deletes a custom category by id and moves its devices to 'other'.
+  void deleteCustomCategory(String id) {
+    _repository.deleteCustomCategory(id);
+    _feedbackMessage = 'Deleted category $id';
+    if (_selectedCategory == id) {
+      _selectedCategory = 'all';
+    }
+    loadDevices();
   }
 
   /// Adds or updates a device record.

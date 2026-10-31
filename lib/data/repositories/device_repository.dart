@@ -42,6 +42,38 @@ class DeviceRepository {
     _database.updateDeviceName(mac, newName);
   }
 
+  void updateDeviceDetails(
+    String mac, {
+    String? name,
+    String? deviceType,
+    String? vendor,
+    String? notes,
+  }) {
+    _database.updateDeviceDetails(
+      mac,
+      name: name,
+      deviceType: deviceType,
+      vendor: vendor,
+      notes: notes,
+    );
+  }
+
+  List<CustomDeviceCategory> getCustomCategories() {
+    return _database.getCustomCategories();
+  }
+
+  List<UnifiedDeviceCategory> getUnifiedCategories() {
+    return _database.getUnifiedCategories();
+  }
+
+  void upsertCustomCategory(CustomDeviceCategory category) {
+    _database.upsertCustomCategory(category);
+  }
+
+  void deleteCustomCategory(String id) {
+    _database.deleteCustomCategory(id);
+  }
+
   void deleteDevice(String mac) {
     _database.deleteDevice(mac);
   }
