@@ -55,16 +55,25 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
             child: Row(
               children: [
                 // Suite Logo / Icon
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryAccent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.hub_outlined,
-                    size: 20,
-                    color: AppTheme.primaryAccent,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/icons/app_icon.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Icon(
+                        Icons.rocket_launch,
+                        size: 20,
+                        color: AppTheme.primaryAccent,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
