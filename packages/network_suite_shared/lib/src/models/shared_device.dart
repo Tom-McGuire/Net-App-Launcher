@@ -1,4 +1,6 @@
+import 'custom_device_category.dart';
 import 'device_category.dart';
+import 'unified_device_category.dart';
 
 /// Represents a persistent network device identified permanently by its MAC address.
 ///
@@ -71,6 +73,16 @@ class SharedDevice {
   /// Returns the corresponding [DeviceCategory] enum value.
   DeviceCategory get category => DeviceCategory.fromKey(deviceType);
 
+  /// Resolves the corresponding [UnifiedDeviceCategory], considering custom categories.
+  UnifiedDeviceCategory getUnifiedCategory([
+    List<CustomDeviceCategory> customCategories = const [],
+  ]) {
+    return UnifiedDeviceCategory.resolve(
+      deviceType,
+      customCategories: customCategories,
+    );
+  }
+
   /// Whether this device has a custom user-assigned name,
   /// rather than a generated default placeholder (e.g. "Device 00:1A:2B:3C:4D:5E",
   /// raw MAC address, "Unknown Device", or empty string).
@@ -80,7 +92,8 @@ class SharedDevice {
     if (clean.toLowerCase() == 'unknown device') return false;
 
     // Matches "Device <MAC>" with colons, dashes, or plain hex
-    final devicePrefixRegex = RegExp(r'^device\s+([0-9a-fA-F:.-]+)$', caseSensitive: false);
+    final devicePrefixRegex =
+        RegExp(r'^device\s+([0-9a-fA-F:.-]+)$', caseSensitive: false);
     final match = devicePrefixRegex.firstMatch(clean);
     if (match != null) {
       final embedded = match.group(1)!;
