@@ -49,6 +49,69 @@ void main() {
       }
     });
 
+    test('matches installer assets and prioritizes installer in findLauncherAssetForCurrentPlatform', () {
+      final release = ReleaseInfo(
+        tagName: 'v0.7.0.Beta',
+        name: 'Release 0.7.0.Beta',
+        publishedAt: DateTime.now(),
+        body: 'Installer release',
+        assets: const [
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_windows_x64.zip',
+            downloadUrl: 'https://github.com/.../windows.zip',
+            sizeBytes: 15000000,
+            contentType: 'application/zip',
+          ),
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_windows_x64_Setup.exe',
+            downloadUrl: 'https://github.com/.../windows_Setup.exe',
+            sizeBytes: 16000000,
+            contentType: 'application/octet-stream',
+          ),
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_macos.zip',
+            downloadUrl: 'https://github.com/.../macos.zip',
+            sizeBytes: 14000000,
+            contentType: 'application/zip',
+          ),
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_macos.dmg',
+            downloadUrl: 'https://github.com/.../macos.dmg',
+            sizeBytes: 15000000,
+            contentType: 'application/octet-stream',
+          ),
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_linux_x64.tar.gz',
+            downloadUrl: 'https://github.com/.../linux.tar.gz',
+            sizeBytes: 13000000,
+            contentType: 'application/gzip',
+          ),
+          ReleaseAsset(
+            name: 'NetworkSuiteLauncher_linux_amd64.deb',
+            downloadUrl: 'https://github.com/.../linux_amd64.deb',
+            sizeBytes: 13500000,
+            contentType: 'application/vnd.debian.binary-package',
+          ),
+        ],
+      );
+
+      final installer = release.findInstallerForCurrentPlatform();
+      expect(installer, isNotNull);
+      final preferred = release.findLauncherAssetForCurrentPlatform();
+      expect(preferred, isNotNull);
+
+      if (Platform.isWindows) {
+        expect(installer!.name, 'NetworkSuiteLauncher_windows_x64_Setup.exe');
+        expect(preferred!.name, 'NetworkSuiteLauncher_windows_x64_Setup.exe');
+      } else if (Platform.isMacOS) {
+        expect(installer!.name, 'NetworkSuiteLauncher_macos.dmg');
+        expect(preferred!.name, 'NetworkSuiteLauncher_macos.dmg');
+      } else if (Platform.isLinux) {
+        expect(installer!.name, 'NetworkSuiteLauncher_linux_amd64.deb');
+        expect(preferred!.name, 'NetworkSuiteLauncher_linux_amd64.deb');
+      }
+    });
+
     test('semantic version comparison handles v prefix and prevents downgrades', () {
       final release = ReleaseInfo(
         tagName: 'v1.2.0',

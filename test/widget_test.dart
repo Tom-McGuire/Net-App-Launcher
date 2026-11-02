@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:net_app_launcher/data/repositories/device_repository.dart';
+import 'package:net_app_launcher/domain/models/release_info.dart';
 import 'package:net_app_launcher/main.dart';
 import 'package:net_app_launcher/ui/view_models/device_manager_view_model.dart';
 import 'package:net_app_launcher/ui/view_models/launcher_view_model.dart';
+import 'package:net_app_launcher/ui/views/launcher_self_update_dialog.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
 
 class MockLauncherViewModel extends LauncherViewModel {
@@ -122,5 +124,43 @@ void main() {
     deviceVm.updateDeviceCategory('00:1A:2B:3C:4D:5E', 'firewall');
     await tester.pump();
     expect(find.text('Firewall / UTM'), findsWidgets); // In filter chip and table row
+  });
+
+  testWidgets('LauncherSelfUpdateDialog renders release details and update actions', (WidgetTester tester) async {
+    final release = ReleaseInfo(
+      tagName: 'v0.7.0.Beta',
+      name: 'Network Suite Launcher v0.7.0.Beta',
+      publishedAt: DateTime(2026, 11, 2, 12, 0),
+      body: 'Added Windows Inno Setup installer and automated in-app updater.',
+      assets: const [
+        ReleaseAsset(
+          name: 'NetworkSuiteLauncher_windows_x64_Setup.exe',
+          downloadUrl: 'https://github.com/Tom-McGuire/Net-App-Launcher/releases/download/v0.7.0.Beta/NetworkSuiteLauncher_windows_x64_Setup.exe',
+          sizeBytes: 15728640,
+          contentType: 'application/octet-stream',
+        ),
+        ReleaseAsset(
+          name: 'NetworkSuiteLauncher_linux_amd64.deb',
+          downloadUrl: 'https://github.com/Tom-McGuire/Net-App-Launcher/releases/download/v0.7.0.Beta/NetworkSuiteLauncher_linux_amd64.deb',
+          sizeBytes: 14680064,
+          contentType: 'application/vnd.debian.binary-package',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LauncherSelfUpdateDialog(release: release),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Network Suite Launcher Update'), findsOneWidget);
+    expect(find.textContaining('v0.7.0.Beta'), findsWidgets);
+    expect(find.textContaining('Added Windows Inno Setup installer'), findsOneWidget);
+    expect(find.text('Later'), findsOneWidget);
+    expect(find.text('View on GitHub'), findsOneWidget);
   });
 }

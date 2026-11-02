@@ -116,4 +116,38 @@ class ReleaseInfo {
     }
     return null;
   }
+
+  /// Finds an installer package (e.g. Windows Setup .exe, macOS .dmg, Linux .deb) matching the current platform.
+  ReleaseAsset? findInstallerForCurrentPlatform() {
+    if (Platform.isWindows) {
+      return assets.cast<ReleaseAsset?>().firstWhere(
+            (a) =>
+                a!.name.toLowerCase().contains('setup') &&
+                a.name.toLowerCase().endsWith('.exe'),
+            orElse: () => assets.cast<ReleaseAsset?>().firstWhere(
+              (a) =>
+                  a!.name.toLowerCase().endsWith('.exe') &&
+                  !a.name.toLowerCase().contains('unins'),
+              orElse: () => null,
+            ),
+          );
+    } else if (Platform.isMacOS) {
+      return assets.cast<ReleaseAsset?>().firstWhere(
+            (a) => a!.name.toLowerCase().endsWith('.dmg'),
+            orElse: () => null,
+          );
+    } else if (Platform.isLinux) {
+      return assets.cast<ReleaseAsset?>().firstWhere(
+            (a) => a!.name.toLowerCase().endsWith('.deb'),
+            orElse: () => null,
+          );
+    }
+    return null;
+  }
+
+  /// Finds the preferred launcher asset for updating the launcher itself.
+  /// Prefers installers (.exe setup, .dmg, .deb), falling back to portable archives (.zip, .tar.gz).
+  ReleaseAsset? findLauncherAssetForCurrentPlatform() {
+    return findInstallerForCurrentPlatform() ?? findAssetForCurrentPlatform();
+  }
 }

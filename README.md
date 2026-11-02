@@ -58,6 +58,25 @@ Even if this Launcher application is never installed or opened, any suite applic
 
 ---
 
+## Installation & Updates
+
+The launcher provides automated native installers and self-updating across desktop platforms:
+
+- **Windows**:
+  - **Installer (`NetworkSuiteLauncher_windows_x64_Setup.exe`)**: Installs to `%LOCALAPPDATA%\Programs\NetworkSuiteLauncher` without requiring administrator privileges or UAC elevation. Automatically creates Start Menu and Desktop shortcuts and registers in Windows Add/Remove Programs.
+  - **In-App Auto-Update**: When a new version is released, clicking **"Install & Update"** downloads the setup package, runs it silently with `/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS`, and re-launches the updated application automatically.
+  - **Portable Archive (`NetworkSuiteLauncher_windows_x64.zip`)**: Available for standalone or portable drive usage.
+
+- **macOS**:
+  - **Disk Image (`NetworkSuiteLauncher_macos.dmg`)**: Open the `.dmg` and drag the application to your `/Applications` folder.
+  - **Portable Archive (`NetworkSuiteLauncher_macos.zip`)**: Universal binary archive.
+
+- **Linux**:
+  - **Debian Package (`NetworkSuiteLauncher_linux_amd64.deb`)**: Double-click or run `sudo dpkg -i NetworkSuiteLauncher_linux_amd64.deb` for full system menu and launcher integration.
+  - **Portable Tarball (`NetworkSuiteLauncher_linux_x64.tar.gz`)**: Standalone binary bundle.
+
+---
+
 ## Security & Code Signing Notes
 
 > **Note on Windows / macOS Security Prompts:**

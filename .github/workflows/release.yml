@@ -1,10 +1,10 @@
 # ==============================================================================
 # Universal GitHub Actions Workflow for Flutter Desktop Releases
 # Target Platforms: Windows (x64), Linux (x64), macOS (Universal)
-# Usage:
-#   1. Place this file in your project at: .github/workflows/release.yml
-#   2. Push to GitHub
-#   3. Create and push a tag (e.g. `git tag v1.0.0` && `git push origin v1.0.0`)
+# Outputs:
+#   - Windows: Inno Setup Installer (.exe) & Portable Zip (.zip)
+#   - Linux: Debian Package (.deb) & Portable Tarball (.tar.gz)
+#   - macOS: Disk Image (.dmg) & Portable Zip (.zip)
 # ==============================================================================
 
 name: Build and Release Flutter Desktop
@@ -61,28 +61,84 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      # Step 5a: Build & Package Windows (x64 Zip)
+      # Step 5a: Build & Package Windows (x64 Zip & Inno Setup Installer)
       - name: Build Windows
         if: matrix.target == 'windows'
         shell: pwsh
         run: |
           flutter build windows --release
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "${{ github.event.repository.name }}_windows_x64.zip"
+          choco install innosetup -y
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $iscc) {
+            & $iscc /DAppVersion="${{ github.ref_name }}" windows/installer/net_app_launcher.iss
+          } else {
+            iscc /DAppVersion="${{ github.ref_name }}" windows/installer/net_app_launcher.iss
+          }
 
-      # Step 5b: Build & Package Linux (x64 Tarball)
+      # Step 5b: Build & Package Linux (x64 Tarball & Debian .deb)
       - name: Build Linux
         if: matrix.target == 'linux'
         run: |
           flutter build linux --release
           tar -czvf "${{ github.event.repository.name }}_linux_x64.tar.gz" -C build/linux/x64/release/bundle .
 
-      # Step 5c: Build & Package macOS (Universal Zip)
+          # Package Debian installer (.deb)
+          PKG_DIR="build/deb_pkg"
+          mkdir -p "$PKG_DIR/usr/lib/network-suite-launcher"
+          mkdir -p "$PKG_DIR/usr/bin"
+          mkdir -p "$PKG_DIR/usr/share/applications"
+          mkdir -p "$PKG_DIR/usr/share/icons/hicolor/256x256/apps"
+          mkdir -p "$PKG_DIR/DEBIAN"
+
+          cp -r build/linux/x64/release/bundle/* "$PKG_DIR/usr/lib/network-suite-launcher/"
+          cp assets/icons/app_icon.png "$PKG_DIR/usr/share/icons/hicolor/256x256/apps/network-suite-launcher.png"
+
+          cat << 'EOF' > "$PKG_DIR/usr/bin/network-suite-launcher"
+          #!/bin/sh
+          exec /usr/lib/network-suite-launcher/net_app_launcher "$@"
+          EOF
+          chmod +x "$PKG_DIR/usr/bin/network-suite-launcher"
+
+          cat << 'EOF' > "$PKG_DIR/usr/share/applications/network-suite-launcher.desktop"
+          [Desktop Entry]
+          Name=Network Suite Launcher
+          Comment=Launcher and Manager for Network Discovery Suite
+          Exec=network-suite-launcher
+          Icon=network-suite-launcher
+          Terminal=false
+          Type=Application
+          Categories=Network;Utility;
+          EOF
+
+          RAW_VER="${GITHUB_REF_NAME#v}"
+          CLEAN_VER="${RAW_VER//-/.}"
+
+          cat << EOF > "$PKG_DIR/DEBIAN/control"
+          Package: network-suite-launcher
+          Version: $CLEAN_VER
+          Architecture: amd64
+          Maintainer: Tom McGuire
+          Description: Network Suite Launcher and Hub
+           Desktop launcher and manager for the Network Discovery Suite.
+          EOF
+
+          dpkg-deb --build "$PKG_DIR" "${{ github.event.repository.name }}_linux_amd64.deb"
+
+      # Step 5c: Build & Package macOS (Universal Zip & DMG)
       - name: Build macOS
         if: matrix.target == 'macos'
         run: |
           flutter build macos --release
           cd build/macos/Build/Products/Release
           zip -r "$GITHUB_WORKSPACE/${{ github.event.repository.name }}_macos.zip" *.app
+          cd "$GITHUB_WORKSPACE"
+
+          # Package DMG with Applications symlink
+          mkdir -p build/dmg_temp
+          cp -R "build/macos/Build/Products/Release/"*.app build/dmg_temp/
+          ln -s /Applications build/dmg_temp/Applications
+          hdiutil create -volname "Network Suite Launcher" -srcfolder build/dmg_temp -ov -format UDZO "${{ github.event.repository.name }}_macos.dmg"
 
       # Step 6: Stash the archive as a temporary workflow artifact
       - name: Stash build asset
@@ -91,8 +147,12 @@ jobs:
           name: ${{ matrix.target }}-asset
           path: |
             *windows*.zip
+            *Setup.exe
+            *windows*.exe
             *linux*.tar.gz
+            *linux*.deb
             *macos*.zip
+            *macos*.dmg
 
   publish:
     name: Publish Release
