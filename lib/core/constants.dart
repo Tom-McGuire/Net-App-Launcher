@@ -91,6 +91,15 @@ class SuiteConstants {
       summary: 'Virtual L3 software router, static route routing table tester, and NAT emulator.',
       icon: Icons.alt_route,
     ),
+    AppCatalogDefinition(
+      id: 'net-route-scout',
+      name: 'Net Route Scout',
+      repoName: 'route-tracer',
+      defaultExecutableName: 'net_route_scout',
+      category: 'Topology & Routing',
+      summary: 'Visual multi-hop network topology discovery and traceroute mapper with shared device identity integration.',
+      icon: Icons.hub,
+    ),
   ];
 }
 
