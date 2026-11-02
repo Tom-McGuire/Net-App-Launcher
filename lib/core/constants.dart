@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.6.6.Beta';
+  static const String currentVersion = 'v0.6.7.Beta';
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
@@ -94,7 +94,7 @@ class SuiteConstants {
     AppCatalogDefinition(
       id: 'net-route-scout',
       name: 'Net Route Scout',
-      repoName: 'route-tracer',
+      repoName: 'Net-Route-Scout',
       defaultExecutableName: 'net_route_scout',
       category: 'Topology & Routing',
       summary: 'Visual multi-hop network topology discovery and traceroute mapper with shared device identity integration.',
