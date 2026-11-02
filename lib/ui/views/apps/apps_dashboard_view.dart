@@ -95,7 +95,7 @@ class AppsDashboardView extends StatelessWidget {
               IconButton(
                 tooltip: 'Check GitHub Releases',
                 icon: const Icon(Icons.refresh, size: 18),
-                onPressed: vm.isLoading ? null : vm.loadApps,
+                onPressed: vm.isLoading ? null : () => vm.loadApps(forceRefresh: true),
               ),
             ],
           ),
@@ -190,7 +190,7 @@ class AppsDashboardView extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   FilledButton.icon(
-                    onPressed: vm.loadApps,
+                    onPressed: () => vm.loadApps(forceRefresh: true),
                     icon: const Icon(Icons.refresh, size: 15),
                     label: const Text('Refresh Discovery'),
                   ),

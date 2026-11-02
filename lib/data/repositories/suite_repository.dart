@@ -29,11 +29,15 @@ class SuiteRepository {
         _dependencyService = dependencyService ?? DependencyService();
 
   bool get isRateLimited => _gitHubService.isRateLimited;
+  DateTime? get rateLimitResetTime => _gitHubService.rateLimitResetTime;
 
   /// Checks whether a newer release of the Launcher itself is published on GitHub.
-  Future<ReleaseInfo?> checkLauncherSelfUpdate() async {
+  Future<ReleaseInfo?> checkLauncherSelfUpdate({bool forceRefresh = false}) async {
     try {
-      final release = await _gitHubService.fetchLatestRelease(SuiteConstants.launcherRepoName);
+      final release = await _gitHubService.fetchLatestRelease(
+        SuiteConstants.launcherRepoName,
+        forceRefresh: forceRefresh,
+      );
       if (release != null &&
           release.tagName.isNotEmpty &&
           release.isNewerThan(SuiteConstants.currentVersion)) {
@@ -48,12 +52,18 @@ class SuiteRepository {
   ///
   /// Per design, catalog apps returning 404 (private or unreleased) are hidden
   /// unless [includeUnreleased] is explicitly true.
-  Future<List<SuiteApp>> loadSuiteApps({bool includeUnreleased = false}) async {
+  Future<List<SuiteApp>> loadSuiteApps({
+    bool includeUnreleased = false,
+    bool forceRefresh = false,
+  }) async {
     final catalog = SuiteConstants.catalog;
     final installedMap = _registry.loadRegistry();
 
-    // Query GitHub releases
-    final releases = await _gitHubService.fetchAllPublicReleases(catalog);
+    // Query GitHub releases (leveraging caching & ETag conditional requests)
+    final releases = await _gitHubService.fetchAllPublicReleases(
+      catalog,
+      forceRefresh: forceRefresh,
+    );
 
     final apps = <SuiteApp>[];
 

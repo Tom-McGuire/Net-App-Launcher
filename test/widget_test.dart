@@ -12,7 +12,7 @@ class MockLauncherViewModel extends LauncherViewModel {
   MockLauncherViewModel() : super();
 
   @override
-  Future<void> loadApps() async {
+  Future<void> loadApps({bool forceRefresh = false}) async {
     // Provide fast deterministic mock data for widget test
   }
 }

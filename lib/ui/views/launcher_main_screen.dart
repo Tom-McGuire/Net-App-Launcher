@@ -183,7 +183,25 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
           ),
 
           // 2. GLOBAL ALERT / STATUS BANNER (Conditional - Tier 2)
-          if (launcherVm.errorMessage != null)
+          if (launcherVm.isRateLimited)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppTheme.warning.withValues(alpha: 0.15),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_top, size: 16, color: AppTheme.warning),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'GitHub API rate limit reached (60 req/hr per IP). ${launcherVm.rateLimitResetDescription ?? 'Resetting shortly.'} • Serving locally cached releases.',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.warning),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (launcherVm.errorMessage != null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -3,14 +3,24 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:net_app_launcher/data/services/app_installer_service.dart';
 import 'package:net_app_launcher/data/services/device_export_service.dart';
+import 'package:net_app_launcher/data/services/github_service.dart';
 import 'package:net_app_launcher/data/services/local_app_registry.dart';
 import 'package:net_app_launcher/domain/models/release_info.dart';
 import 'package:net_app_launcher/ui/views/launcher_self_update_dialog.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
+
+class FakeHttpClient extends http.BaseClient {
+  final Future<http.StreamedResponse> Function(http.BaseRequest request) handler;
+  FakeHttpClient(this.handler);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) => handler(request);
+}
 
 void main() {
   group('ReleaseInfo Asset Matching & Semantic Versioning', () {
@@ -126,6 +136,198 @@ void main() {
       expect(release.isNewerThan('v1.2.0'), isFalse);
       expect(release.isNewerThan('1.2.0'), isFalse);
       expect(release.isNewerThan('v1.3.0'), isFalse);
+    });
+  });
+
+  group('GitHubService Caching & Rate Limiting', () {
+    late Directory cacheTempDir;
+
+    setUp(() {
+      cacheTempDir = Directory.systemTemp.createTempSync('gh_cache_test_');
+    });
+
+    tearDown(() {
+      try {
+        cacheTempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('caches release response and avoids network request within TTL', () async {
+      int requestCount = 0;
+      final fakeClient = FakeHttpClient((request) async {
+        requestCount++;
+        final jsonStr = jsonEncode({
+          'tag_name': 'v1.0.0',
+          'name': 'Release 1.0.0',
+          'published_at': '2026-11-01T12:00:00Z',
+          'body': 'Initial release notes',
+          'assets': [
+            {
+              'name': 'ARP-Scout_windows_x64.zip',
+              'browser_download_url': 'https://github.com/Tom-McGuire/ARP-Scout/releases/download/v1.0.0/app.zip',
+              'size': 12345,
+              'content_type': 'application/zip',
+            }
+          ],
+        });
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonStr)),
+          200,
+          headers: {'etag': 'W/"etag-test-123"'},
+        );
+      });
+
+      final service = GitHubService(
+        client: fakeClient,
+        customCacheDir: cacheTempDir.path,
+        cacheTtl: const Duration(minutes: 15),
+      );
+
+      // First call -> hits network
+      final release1 = await service.fetchLatestRelease('ARP-Scout');
+      expect(release1, isNotNull);
+      expect(release1!.tagName, 'v1.0.0');
+      expect(requestCount, 1);
+
+      // Second call within TTL -> returns cached without network request
+      final release2 = await service.fetchLatestRelease('ARP-Scout');
+      expect(release2, isNotNull);
+      expect(release2!.tagName, 'v1.0.0');
+      expect(requestCount, 1); // requestCount did NOT increment!
+    });
+
+    test('sends If-None-Match ETag on forceRefresh and handles HTTP 304 gracefully', () async {
+      String? sentIfNoneMatch;
+      int requestCount = 0;
+
+      final fakeClient = FakeHttpClient((request) async {
+        requestCount++;
+        sentIfNoneMatch = request.headers['if-none-match'];
+
+        if (requestCount == 1) {
+          final jsonStr = jsonEncode({
+            'tag_name': 'v1.0.0',
+            'name': 'Release 1.0.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': 'Initial notes',
+            'assets': [],
+          });
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonStr)),
+            200,
+            headers: {'etag': 'W/"etag-test-456"'},
+          );
+        } else {
+          // Second request: return 304 Not Modified
+          return http.StreamedResponse(
+            const Stream.empty(),
+            304,
+            headers: {'etag': 'W/"etag-test-456"'},
+          );
+        }
+      });
+
+      final service = GitHubService(
+        client: fakeClient,
+        customCacheDir: cacheTempDir.path,
+      );
+
+      final r1 = await service.fetchLatestRelease('ARP-Scout');
+      expect(r1, isNotNull);
+      expect(requestCount, 1);
+      expect(sentIfNoneMatch, isNull);
+
+      // Force refresh -> should send ETag in If-None-Match header
+      final r2 = await service.fetchLatestRelease('ARP-Scout', forceRefresh: true);
+      expect(r2, isNotNull);
+      expect(r2!.tagName, 'v1.0.0');
+      expect(requestCount, 2);
+      expect(sentIfNoneMatch, 'W/"etag-test-456"');
+    });
+
+    test('detects rate limit, parses reset timestamp, and serves cached data', () async {
+      final resetEpochSec = DateTime.now().add(const Duration(minutes: 25)).millisecondsSinceEpoch ~/ 1000;
+
+      int callIndex = 0;
+      final fakeClient = FakeHttpClient((request) async {
+        callIndex++;
+        if (callIndex == 1) {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'tag_name': 'v1.0.0',
+              'name': 'Release 1.0.0',
+              'published_at': '2026-11-01T12:00:00Z',
+              'body': '',
+              'assets': [],
+            }))),
+            200,
+            headers: {'etag': 'W/"etag-abc"'},
+          );
+        } else {
+          // Rate limited response
+          return http.StreamedResponse(
+            Stream.value(utf8.encode('{"message":"API rate limit exceeded"}')),
+            403,
+            headers: {
+              'x-ratelimit-remaining': '0',
+              'x-ratelimit-reset': resetEpochSec.toString(),
+            },
+          );
+        }
+      });
+
+      final service = GitHubService(
+        client: fakeClient,
+        customCacheDir: cacheTempDir.path,
+      );
+
+      // Populate cache
+      await service.fetchLatestRelease('ARP-Scout');
+      expect(service.isRateLimited, isFalse);
+
+      // Second call encounters rate limit
+      final release = await service.fetchLatestRelease('ARP-Scout', forceRefresh: true);
+      expect(service.isRateLimited, isTrue);
+      expect(service.rateLimitResetTime, isNotNull);
+      // Graceful fallback returns cached release!
+      expect(release, isNotNull);
+      expect(release!.tagName, 'v1.0.0');
+    });
+
+    test('persists cache to disk and restores it across instances', () async {
+      final fakeClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'tag_name': 'v2.1.0',
+            'name': 'Release 2.1.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': 'Persisted release notes',
+            'assets': [],
+          }))),
+          200,
+          headers: {'etag': 'W/"persisted-etag"'},
+        );
+      });
+
+      final service1 = GitHubService(
+        client: fakeClient,
+        customCacheDir: cacheTempDir.path,
+      );
+      await service1.fetchLatestRelease('ARP-Scout');
+
+      // Create a brand new instance pointing to same directory with a client that throws
+      final throwingClient = FakeHttpClient((_) => throw StateError('Should not hit network'));
+      final service2 = GitHubService(
+        client: throwingClient,
+        customCacheDir: cacheTempDir.path,
+        cacheTtl: const Duration(minutes: 30),
+      );
+
+      // Should load from disk cache without throwing
+      final restored = await service2.fetchLatestRelease('ARP-Scout');
+      expect(restored, isNotNull);
+      expect(restored!.tagName, 'v2.1.0');
+      expect(service2.cache.containsKey('ARP-Scout'), isTrue);
     });
   });
 

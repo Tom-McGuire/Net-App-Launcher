@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../domain/models/release_info.dart';
 import '../../domain/models/suite_app.dart';
@@ -33,6 +34,22 @@ class LauncherViewModel extends ChangeNotifier {
   double get activeDownloadProgress => _activeDownloadProgress;
   String? get activeStatusMessage => _activeStatusMessage;
   String? get errorMessage => _errorMessage;
+  bool get isRateLimited => _repository.isRateLimited;
+  DateTime? get rateLimitResetTime => _repository.rateLimitResetTime;
+
+  String? get rateLimitResetDescription {
+    final reset = _repository.rateLimitResetTime;
+    if (reset == null) return null;
+    final diff = reset.difference(DateTime.now());
+    final timeStr = DateFormat('h:mm a').format(reset);
+    if (diff.isNegative) {
+      return 'Resets momentarily';
+    } else if (diff.inMinutes > 0) {
+      return 'Resets in ${diff.inMinutes + 1}m (at $timeStr)';
+    } else {
+      return 'Resets in ${diff.inSeconds}s (at $timeStr)';
+    }
+  }
   int get selectedTabIndex => _selectedTabIndex;
   ReleaseInfo? get launcherSelfUpdate => _launcherSelfUpdate;
   bool get isLauncherUpdateAvailable => _launcherSelfUpdate != null;
@@ -91,21 +108,21 @@ class LauncherViewModel extends ChangeNotifier {
     loadApps();
   }
 
-  Future<void> loadApps() async {
+  Future<void> loadApps({bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final results = await Future.wait([
-        _repository.loadSuiteApps(includeUnreleased: _showUnreleased),
-        _repository.checkLauncherSelfUpdate(),
+        _repository.loadSuiteApps(
+          includeUnreleased: _showUnreleased,
+          forceRefresh: forceRefresh,
+        ),
+        _repository.checkLauncherSelfUpdate(forceRefresh: forceRefresh),
       ]);
       _apps = results[0] as List<SuiteApp>;
       _launcherSelfUpdate = results[1] as ReleaseInfo?;
-      if (_repository.isRateLimited) {
-        _errorMessage = 'GitHub API rate limit reached (HTTP 403/429). Some public releases may not be shown until the rate limit resets.';
-      }
     } catch (e) {
       _errorMessage = 'Failed to discover suite applications: $e';
     } finally {
