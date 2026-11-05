@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.7.1.Beta';
+  static const String currentVersion = 'v0.7.2.Beta';
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
@@ -99,6 +99,15 @@ class SuiteConstants {
       category: 'Topology & Routing',
       summary: 'Visual multi-hop network topology discovery and traceroute mapper with shared device identity integration.',
       icon: Icons.hub,
+    ),
+    AppCatalogDefinition(
+      id: 'ip-setter',
+      name: 'IP Setter',
+      repoName: 'IP-Switcher',
+      defaultExecutableName: 'ip_setter',
+      category: 'Adapter & Config',
+      summary: 'One-click network adapter preset switching (Static IPv4, DHCP, Gateway, DNS, alias IPs) with live NIC telemetry and rollback.',
+      icon: Icons.tune,
     ),
   ];
 }

@@ -3,7 +3,7 @@
 ; Author: Tom McGuire (io.github.tommcguire)
 
 #ifndef AppVersion
-  #define AppVersion "0.7.1.Beta"
+  #define AppVersion "0.7.2.Beta"
 #endif
 
 #define MyAppName "Network Suite Launcher"
