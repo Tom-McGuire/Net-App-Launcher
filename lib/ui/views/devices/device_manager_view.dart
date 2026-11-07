@@ -895,7 +895,7 @@ class DeviceManagerView extends StatelessWidget {
                 'Devices discovered by arp-scout or packet-inspector will automatically populate here.\n'
                 'You can also manually register devices or import a list from CSV/JSON.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(

@@ -137,10 +137,14 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                           color: AppTheme.primaryAccent,
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        'Source: ${widget.device.sourceApp}',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Source: ${widget.device.sourceApp}',
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
                       ),
                     ],
                   ),
@@ -208,7 +212,8 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _selectedCategoryKey,
+                  isExpanded: true,
+                  initialValue: _selectedCategoryKey,
                   decoration: const InputDecoration(),
                   items: categories.map((cat) {
                     return DropdownMenuItem<String>(
@@ -221,7 +226,13 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                             color: cat.color ?? AppTheme.primaryAccent,
                           ),
                           const SizedBox(width: 8),
-                          Text(cat.label, style: const TextStyle(fontSize: 12)),
+                          Expanded(
+                            child: Text(
+                              cat.label,
+                              style: const TextStyle(fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           if (cat.isCustom) ...[
                             const SizedBox(width: 6),
                             Container(

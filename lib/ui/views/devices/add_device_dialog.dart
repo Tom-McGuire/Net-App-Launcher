@@ -219,7 +219,8 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: _selectedCategoryKey,
+                            isExpanded: true,
+                            initialValue: _selectedCategoryKey,
                             decoration: const InputDecoration(),
                             items: categories.map((cat) {
                               return DropdownMenuItem<String>(
@@ -232,7 +233,13 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                                       color: cat.color ?? AppTheme.primaryAccent,
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(cat.label, style: const TextStyle(fontSize: 12)),
+                                    Expanded(
+                                      child: Text(
+                                        cat.label,
+                                        style: const TextStyle(fontSize: 12),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               );

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.7.2.Beta';
+  static const String currentVersion = 'v0.7.3.Beta';
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
@@ -108,6 +108,15 @@ class SuiteConstants {
       category: 'Adapter & Config',
       summary: 'One-click network adapter preset switching (Static IPv4, DHCP, Gateway, DNS, alias IPs) with live NIC telemetry and rollback.',
       icon: Icons.tune,
+    ),
+    AppCatalogDefinition(
+      id: 'socket-scout',
+      name: 'Socket Scout',
+      repoName: 'Socket-Scout',
+      defaultExecutableName: 'socket_scout',
+      category: 'Discovery & L2',
+      summary: 'Switch Port Identifier (LLDP & CDP listener) for mapping physical wall sockets to switch ports, VLANs, and device identities.',
+      icon: Icons.lan,
     ),
   ];
 }

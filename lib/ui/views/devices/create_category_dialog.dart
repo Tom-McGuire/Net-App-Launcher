@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:network_suite_shared/network_suite_shared.dart';
 import '../../../core/app_theme.dart';
 
 class CreateCategoryDialog extends StatefulWidget {

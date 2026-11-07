@@ -2,13 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:net_app_launcher/core/constants.dart';
+import 'package:net_app_launcher/data/repositories/device_repository.dart';
+import 'package:net_app_launcher/data/repositories/suite_repository.dart';
 import 'package:net_app_launcher/data/services/app_installer_service.dart';
+import 'package:net_app_launcher/data/services/app_runner_service.dart';
+import 'package:net_app_launcher/data/services/dependency_service.dart';
 import 'package:net_app_launcher/data/services/device_export_service.dart';
 import 'package:net_app_launcher/data/services/github_service.dart';
 import 'package:net_app_launcher/data/services/local_app_registry.dart';
+import 'package:net_app_launcher/domain/models/dependency_info.dart';
 import 'package:net_app_launcher/domain/models/release_info.dart';
+import 'package:net_app_launcher/domain/models/suite_app.dart';
+import 'package:net_app_launcher/ui/view_models/device_manager_view_model.dart';
+import 'package:net_app_launcher/ui/view_models/launcher_view_model.dart';
 import 'package:net_app_launcher/ui/views/launcher_self_update_dialog.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
 import 'package:path/path.dart' as p;
@@ -689,6 +699,632 @@ void main() {
       expect(db.getCustomCategories(), isEmpty);
       updated = db.getDeviceByMac('00:11:22:33:44:55');
       expect(updated!.deviceType, 'other');
+    });
+  });
+
+  group('SuiteApp & DependencyInfo Domain Models', () {
+    const sampleDef = AppCatalogDefinition(
+      id: 'test-app',
+      name: 'Test App',
+      repoName: 'Test-App',
+      defaultExecutableName: 'test_app',
+      category: 'Testing',
+      summary: 'A test utility application.',
+      icon: Icons.science,
+    );
+
+    test('SuiteApp canLaunch, hasUpdate, and copyWith logic', () {
+      const app = SuiteApp(
+        definition: sampleDef,
+        status: AppStatus.notInstalled,
+      );
+
+      expect(app.id, 'test-app');
+      expect(app.name, 'Test App');
+      expect(app.category, 'Testing');
+      expect(app.summary, 'A test utility application.');
+      expect(app.canLaunch, isFalse);
+      expect(app.hasUpdate, isFalse);
+
+      final installedApp = app.copyWith(
+        status: AppStatus.installed,
+        executablePath: '/usr/bin/test_app',
+        installedVersion: 'v1.0.0',
+      );
+      expect(installedApp.canLaunch, isTrue);
+      expect(installedApp.hasUpdate, isFalse);
+
+      final updateApp = installedApp.copyWith(status: AppStatus.updateAvailable);
+      expect(updateApp.canLaunch, isTrue);
+      expect(updateApp.hasUpdate, isTrue);
+    });
+
+    test('DependencyInfo copyWith logic', () {
+      const dep = DependencyInfo(
+        id: 'tshark',
+        name: 'Wireshark / TShark',
+        isInstalled: false,
+        installCommand: 'winget install -e --id WiresharkFoundation.Wireshark',
+      );
+
+      expect(dep.isInstalled, isFalse);
+      expect(dep.version, isNull);
+
+      final resolved = dep.copyWith(
+        isInstalled: true,
+        version: 'TShark (Wireshark) 4.2.0',
+      );
+      expect(resolved.isInstalled, isTrue);
+      expect(resolved.version, 'TShark (Wireshark) 4.2.0');
+    });
+  });
+
+  group('LocalAppRegistry Executable Discovery', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('reg_exe_test_');
+    });
+
+    tearDown(() {
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('finds exact executable matching fallbackName in directory root', () {
+      final registry = LocalAppRegistry(customBaseDir: tempDir.path);
+      final appDir = Directory(p.join(tempDir.path, 'apps', 'test-app'))..createSync(recursive: true);
+
+      final binaryName = Platform.isWindows ? 'test_app.exe' : 'test_app';
+      final binFile = File(p.join(appDir.path, binaryName))..writeAsStringSync('#!/bin/sh\nexit 0');
+
+      final found = registry.findExecutableInDirectory(appDir.path, 'test_app');
+      expect(found, isNotNull);
+      expect(found, binFile.path);
+    });
+
+    test('finds executable in subdirectories while ignoring helper files', () {
+      final registry = LocalAppRegistry(customBaseDir: tempDir.path);
+      final subDir = Directory(p.join(tempDir.path, 'apps', 'test-app', 'bin'))..createSync(recursive: true);
+
+      File(p.join(tempDir.path, 'apps', 'test-app', 'readme.txt')).writeAsStringSync('docs');
+      File(p.join(tempDir.path, 'apps', 'test-app', 'unins000.exe')).writeAsStringSync('uninstaller');
+
+      final binaryName = Platform.isWindows ? 'test_app.exe' : 'test_app';
+      final binFile = File(p.join(subDir.path, binaryName))..writeAsStringSync('binary');
+
+      final found = registry.findExecutableInDirectory(p.join(tempDir.path, 'apps', 'test-app'), 'test_app');
+      expect(found, isNotNull);
+      expect(found, binFile.path);
+    });
+
+    test('manages installation records, paths, and deletion', () {
+      final registry = LocalAppRegistry(customBaseDir: tempDir.path);
+
+      expect(registry.loadRegistry().containsKey('sample-app'), isFalse);
+      expect(registry.getAppInstallPath('sample-app'), contains('sample-app'));
+
+      final appDir = Directory(registry.getAppInstallPath('sample-app'))..createSync(recursive: true);
+      final binPath = p.join(appDir.path, 'sample_app');
+      File(binPath).writeAsStringSync('executable');
+
+      expect(LocalAppRegistry.executableExists(binPath), isTrue);
+      expect(LocalAppRegistry.executableExists('/does/not/exist'), isFalse);
+      expect(LocalAppRegistry.executableExists(null), isFalse);
+
+      // Record installation
+      registry.recordInstallation(InstalledAppRecord(
+        appId: 'sample-app',
+        version: 'v2.1.0',
+        installPath: appDir.path,
+        executablePath: binPath,
+        installedAt: DateTime.now(),
+      ));
+
+      var records = registry.loadRegistry();
+      expect(records.containsKey('sample-app'), isTrue);
+      expect(records['sample-app']?.version, 'v2.1.0');
+
+      // Remove installation keeping files
+      registry.removeInstallation('sample-app', deleteFiles: false);
+      expect(registry.loadRegistry().containsKey('sample-app'), isFalse);
+      expect(appDir.existsSync(), isTrue);
+
+      // Record again and remove with deleteFiles: true
+      registry.recordInstallation(InstalledAppRecord(
+        appId: 'sample-app',
+        version: 'v2.1.0',
+        installPath: appDir.path,
+        executablePath: binPath,
+        installedAt: DateTime.now(),
+      ));
+      registry.removeInstallation('sample-app', deleteFiles: true);
+      expect(appDir.existsSync(), isFalse);
+    });
+  });
+
+  group('AppRunnerService Process Management', () {
+    test('reports not running for unknown app and throws for missing binary', () async {
+      final runner = AppRunnerService();
+      expect(runner.isAppRunning('non-existent'), isFalse);
+
+      expect(
+        () => runner.launchApp(appId: 'non-existent', executablePath: '/does/not/exist/bin'),
+        throwsA(isA<Exception>()),
+      );
+
+      // terminateApp does not throw on unknown appId
+      runner.terminateApp('non-existent');
+    });
+  });
+
+  group('DependencyService CLI Resolution', () {
+    test('correctly identifies standard platform binaries or missing commands', () async {
+      final depService = DependencyService();
+
+      // Check standard POSIX binary (or 'cmd' on Windows)
+      final existingBin = Platform.isWindows ? 'cmd' : 'sh';
+      final result = await depService.checkDependency(
+        id: existingBin,
+        name: 'Shell',
+        installCommand: 'builtin',
+      );
+
+      expect(result.id, existingBin);
+      expect(result.isInstalled, isTrue);
+
+      // Check non-existent command
+      final missingResult = await depService.checkDependency(
+        id: 'non_existent_command_12345_xyz',
+        name: 'Missing Tool',
+        installCommand: 'install it',
+      );
+
+      expect(missingResult.isInstalled, isFalse);
+      expect(missingResult.version, isNull);
+    });
+  });
+
+  group('SuiteRepository App Status & Lifecycle Coordination', () {
+    late Directory tempDir;
+    late LocalAppRegistry registry;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('suite_repo_test_');
+      registry = LocalAppRegistry(customBaseDir: tempDir.path);
+    });
+
+    tearDown(() {
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('resolves app statuses correctly between GitHub releases and local disk installations', () async {
+      // 1. Simulate an installed app 'arp-scout' at version v1.0.0
+      final arpBin = File(p.join(tempDir.path, 'apps', 'arp-scout', Platform.isWindows ? 'arp_scout.exe' : 'arp_scout'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('binary');
+
+      registry.recordInstallation(InstalledAppRecord(
+        appId: 'arp-scout',
+        version: 'v1.0.0',
+        installPath: p.dirname(arpBin.path),
+        executablePath: arpBin.path,
+        installedAt: DateTime.now(),
+      ));
+
+      // 2. Mock GitHub responses:
+      // - 'ARP-Scout' has a newer release v1.2.0 (triggers updateAvailable)
+      // - 'packet-inspector' has v1.0.0 (not installed locally -> notInstalled)
+      // - Other repos return 404 (unreleased)
+      final fakeClient = FakeHttpClient((request) async {
+        if (request.url.path.contains('ARP-Scout')) {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'tag_name': 'v1.2.0',
+              'name': 'v1.2.0 Release',
+              'published_at': '2026-11-01T12:00:00Z',
+              'body': 'Notes',
+              'assets': [],
+            }))),
+            200,
+          );
+        } else if (request.url.path.contains('Packet-Inspector')) {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'tag_name': 'v1.0.0',
+              'name': 'v1.0.0 Release',
+              'published_at': '2026-11-01T12:00:00Z',
+              'body': 'Notes',
+              'assets': [],
+            }))),
+            200,
+          );
+        }
+        return http.StreamedResponse(const Stream.empty(), 404);
+      });
+
+      final gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      final repo = SuiteRepository(
+        gitHubService: gh,
+        registry: registry,
+      );
+
+      final apps = await repo.loadSuiteApps(includeUnreleased: false);
+
+      // Only published or installed apps should appear
+      expect(apps.any((a) => a.id == 'arp-scout'), isTrue);
+      expect(apps.any((a) => a.id == 'packet-inspector'), isTrue);
+
+      final arpApp = apps.firstWhere((a) => a.id == 'arp-scout');
+      expect(arpApp.status, AppStatus.updateAvailable);
+      expect(arpApp.installedVersion, 'v1.0.0');
+      expect(arpApp.latestRelease?.tagName, 'v1.2.0');
+      expect(arpApp.canLaunch, isTrue);
+
+      final packetApp = apps.firstWhere((a) => a.id == 'packet-inspector');
+      expect(packetApp.status, AppStatus.notInstalled);
+      expect(packetApp.canLaunch, isFalse);
+
+      // When includeUnreleased: true, all catalog apps appear
+      final allApps = await repo.loadSuiteApps(includeUnreleased: true);
+      expect(allApps.length, SuiteConstants.catalog.length);
+    });
+
+    test('installApp throws when app has no release, launchApp throws when binary missing', () async {
+      final repo = SuiteRepository(registry: registry);
+
+      const unreleasedApp = SuiteApp(
+        definition: AppCatalogDefinition(
+          id: 'test',
+          name: 'Test',
+          repoName: 'Test',
+          defaultExecutableName: 'test',
+          category: 'General',
+          summary: 'Summary',
+          icon: Icons.science,
+        ),
+        status: AppStatus.notInstalled,
+        latestRelease: null,
+      );
+
+      expect(
+        () => repo.installApp(app: unreleasedApp, onProgress: (_, _, _) {}),
+        throwsA(isA<Exception>()),
+      );
+
+      expect(
+        () => repo.launchApp(unreleasedApp),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
+
+  group('LauncherViewModel Search, Filter, and Tab State', () {
+    late Directory tempDir;
+    late LocalAppRegistry registry;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('vm_test_');
+      registry = LocalAppRegistry(customBaseDir: tempDir.path);
+    });
+
+    tearDown(() {
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('manages tabs, category filtering, search queries, and cooldown descriptions', () async {
+      final fakeClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'tag_name': 'v1.0.0',
+            'name': 'v1.0.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': 'Notes',
+            'assets': [],
+          }))),
+          200,
+        );
+      });
+
+      final gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      final repo = SuiteRepository(gitHubService: gh, registry: registry);
+      final vm = LauncherViewModel(repository: repo);
+
+      await vm.loadApps();
+
+      // Tab switching
+      expect(vm.selectedTabIndex, 0);
+      vm.switchTab(1);
+      expect(vm.selectedTabIndex, 1);
+      vm.switchTab(0);
+
+      // Available categories includes 'All'
+      expect(vm.availableCategories.contains('All'), isTrue);
+
+      // Filtering by category
+      vm.setSelectedCategory('Discovery & L2');
+      expect(vm.selectedCategory, 'Discovery & L2');
+      for (final a in vm.filteredApps) {
+        expect(a.category, 'Discovery & L2');
+      }
+
+      vm.setSelectedCategory('All');
+
+      // Search query filtering
+      vm.setSearchQuery('packet');
+      expect(vm.filteredApps.any((a) => a.name.toLowerCase().contains('packet')), isTrue);
+      vm.setSearchQuery('');
+
+      // Toggle unreleased
+      final prevCount = vm.apps.length;
+      vm.toggleShowUnreleased();
+      expect(vm.showUnreleased, isTrue);
+      expect(vm.apps.length, greaterThanOrEqualTo(prevCount));
+    });
+
+    test('rateLimitResetDescription handles negative, seconds, and minutes formats', () async {
+      final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // Null case
+      var fakeClient = FakeHttpClient((_) async => http.StreamedResponse(const Stream.empty(), 404));
+      var gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      var repo = SuiteRepository(gitHubService: gh, registry: registry);
+      var vm = LauncherViewModel(repository: repo);
+      expect(vm.rateLimitResetDescription, isNull);
+
+      // Momentarily (past reset)
+      fakeClient = FakeHttpClient((_) async => http.StreamedResponse(
+        Stream.value(utf8.encode('{}')),
+        403,
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': '${nowEpoch - 10}',
+        },
+      ));
+      gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      repo = SuiteRepository(gitHubService: gh, registry: registry);
+      vm = LauncherViewModel(repository: repo);
+      await gh.fetchLatestRelease('repo1');
+      expect(vm.rateLimitResetDescription, 'Resets momentarily');
+
+      // Seconds (< 60s)
+      fakeClient = FakeHttpClient((_) async => http.StreamedResponse(
+        Stream.value(utf8.encode('{}')),
+        403,
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': '${nowEpoch + 45}',
+        },
+      ));
+      gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      repo = SuiteRepository(gitHubService: gh, registry: registry);
+      vm = LauncherViewModel(repository: repo);
+      await gh.fetchLatestRelease('repo2');
+      expect(vm.rateLimitResetDescription, contains('Resets in '));
+      expect(vm.rateLimitResetDescription, contains('s (at '));
+
+      // Minutes (> 60s)
+      fakeClient = FakeHttpClient((_) async => http.StreamedResponse(
+        Stream.value(utf8.encode('{}')),
+        403,
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': '${nowEpoch + 600}',
+        },
+      ));
+      gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      repo = SuiteRepository(gitHubService: gh, registry: registry);
+      vm = LauncherViewModel(repository: repo);
+      await gh.fetchLatestRelease('repo3');
+      expect(vm.rateLimitResetDescription, contains('Resets in '));
+      expect(vm.rateLimitResetDescription, contains('m (at '));
+    });
+
+    test('LauncherViewModel installOrUpdate and launch handling', () async {
+      final fakeClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'tag_name': 'v1.0.0',
+            'name': 'v1.0.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': '',
+            'assets': [],
+          }))),
+          200,
+        );
+      });
+
+      final gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      final repo = SuiteRepository(gitHubService: gh, registry: registry);
+      final vm = LauncherViewModel(repository: repo);
+      await vm.loadApps();
+
+      final app = vm.apps.first;
+      // Calling installOrUpdate with no matching asset throws and updates error status
+      await vm.installOrUpdate(app);
+      expect(vm.errorMessage, contains('No compatible release binary found'));
+      final failedApp = vm.apps.firstWhere((a) => a.id == app.id);
+      expect(failedApp.status, AppStatus.error);
+
+      // Launching app without valid executable throws and updates error message
+      await vm.launch(app);
+      expect(vm.errorMessage, isNotNull);
+    });
+
+    test('uninstall resets app state and removes unreleased items', () async {
+      final fakeClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'tag_name': 'v1.0.0',
+            'name': 'v1.0.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': '',
+            'assets': [],
+          }))),
+          200,
+        );
+      });
+
+      final gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      final repo = SuiteRepository(gitHubService: gh, registry: registry);
+      final vm = LauncherViewModel(repository: repo);
+
+      await vm.loadApps();
+
+      final installedApp = vm.apps.first.copyWith(
+        status: AppStatus.installed,
+        executablePath: '/dummy/bin',
+      );
+
+      vm.uninstall(installedApp);
+      final resetApp = vm.apps.firstWhere((a) => a.id == installedApp.id);
+      expect(resetApp.status, AppStatus.notInstalled);
+      expect(resetApp.executablePath, isNull);
+    });
+  });
+
+  group('DeviceRepository Direct Operations', () {
+    test('initializes, counts, exports, updates and deletes devices', () async {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      final repo = DeviceRepository(database: db);
+
+      await repo.init();
+      expect(repo.getDeviceCount(), 0);
+
+      final now = DateTime.now();
+      repo.upsertDevice(SharedDevice(
+        macAddress: '00:11:22:33:44:55',
+        name: 'Device A',
+        deviceType: 'pc',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      ));
+
+      expect(repo.getDeviceCount(), 1);
+      final dev = repo.getDeviceByMac('00:11:22:33:44:55');
+      expect(dev, isNotNull);
+      expect(dev!.name, 'Device A');
+
+      repo.updateDeviceName('00:11:22:33:44:55', 'Workstation A');
+      expect(repo.getDeviceByMac('00:11:22:33:44:55')!.name, 'Workstation A');
+
+      // Export
+      final csv = repo.exportToCsv();
+      expect(csv.contains('Workstation A'), isTrue);
+      final jsonStr = repo.exportToJson();
+      expect(jsonStr.contains('Workstation A'), isTrue);
+
+      // Import batch
+      repo.importDevices([
+        SharedDevice(
+          macAddress: 'AA:BB:CC:DD:EE:FF',
+          name: 'Device B',
+          sourceApp: 'import',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ]);
+      expect(repo.getDeviceCount(), 2);
+
+      // Delete
+      repo.deleteDevice('00:11:22:33:44:55');
+      expect(repo.getDeviceCount(), 1);
+      expect(repo.getDeviceByMac('00:11:22:33:44:55'), isNull);
+    });
+  });
+
+  group('DeviceManagerViewModel Operations & Workflow', () {
+    test('handles sorting, search filtering, device selection, and import/export', () async {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      final repo = DeviceRepository(database: db);
+      final vm = DeviceManagerViewModel(repository: repo);
+
+      // Wait briefly for init to settle
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(vm.totalCount, 0);
+
+      // Add device
+      vm.addDevice(
+        rawMac: '00:11:22:33:44:55',
+        name: 'Office Switch',
+        category: 'switch',
+        vendor: 'Cisco',
+        notes: 'Floor 1',
+      );
+
+      expect(vm.devices.length, 1);
+      expect(vm.devices.first.name, 'Office Switch');
+
+      // Select device
+      vm.selectDevice(vm.devices.first);
+      expect(vm.selectedDevice, isNotNull);
+      expect(vm.selectedDevice!.macAddress, '00:11:22:33:44:55');
+
+      // Update name & details
+      vm.updateDeviceName('00:11:22:33:44:55', 'Core Switch 1');
+      expect(vm.devices.first.name, 'Core Switch 1');
+
+      // Search filtering
+      vm.setSearchQuery('NonExistent');
+      expect(vm.devices.isEmpty, isTrue);
+      vm.setSearchQuery('');
+      expect(vm.devices.length, 1);
+
+      // Category filtering
+      vm.setSelectedCategory('router');
+      expect(vm.devices.isEmpty, isTrue);
+      vm.setSelectedCategory('switch');
+      expect(vm.devices.length, 1);
+      vm.setSelectedCategory('all');
+
+      // Sort column and direction
+      vm.setSorting('name');
+      expect(vm.sortBy, 'name');
+      expect(vm.sortAscending, isTrue);
+      vm.setSorting('name'); // Toggles ascending
+      expect(vm.sortAscending, isFalse);
+
+      // Hide unnamed toggle
+      vm.toggleHideDefaultNamed();
+      expect(vm.hideDefaultNamed, isFalse);
+      vm.toggleHideDefaultNamed();
+      expect(vm.hideDefaultNamed, isTrue);
+
+      // Custom categories
+      vm.createCustomCategory(
+        id: 'nas_storage',
+        label: 'NAS Storage',
+        iconName: 'storage',
+      );
+      expect(vm.customCategories.any((c) => c.id == 'nas_storage'), isTrue);
+
+      vm.deleteCustomCategory('nas_storage');
+      expect(vm.customCategories.any((c) => c.id == 'nas_storage'), isFalse);
+
+      // Export / Import
+      final csv = repo.exportToCsv();
+      expect(csv.contains('Core Switch 1'), isTrue);
+
+      final jsonStr = repo.exportToJson();
+      expect(jsonStr.contains('Core Switch 1'), isTrue);
+
+      vm.deleteDevice('00:11:22:33:44:55');
+      expect(vm.devices.isEmpty, isTrue);
+
+      // Re-import via CSV
+      vm.importFromCsv(csv);
+      expect(vm.devices.length, 1);
+
+      // Clear selection
+      vm.selectDevice(null);
+      expect(vm.selectedDevice, isNull);
     });
   });
 }

@@ -62,7 +62,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                     width: 32,
                     height: 32,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryAccent.withValues(alpha: 0.15),
