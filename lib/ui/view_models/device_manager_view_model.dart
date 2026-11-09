@@ -25,6 +25,7 @@ class DeviceManagerViewModel extends ChangeNotifier {
   bool _sortAscending = false;
   SharedDevice? _selectedDevice;
   String? _feedbackMessage;
+  final Set<String> _selectedMacs = {};
 
   List<SharedDevice> get devices => _devices;
   List<UnifiedDeviceCategory> get categories => _categories;
@@ -38,6 +39,9 @@ class DeviceManagerViewModel extends ChangeNotifier {
   bool get sortAscending => _sortAscending;
   SharedDevice? get selectedDevice => _selectedDevice;
   String? get feedbackMessage => _feedbackMessage;
+  Set<String> get selectedMacs => Set.unmodifiable(_selectedMacs);
+  bool get hasSelection => _selectedMacs.isNotEmpty;
+  bool isMacSelected(String mac) => _selectedMacs.contains(SharedDevice.normalizeMac(mac));
 
   Future<void> _init() async {
     _isLoading = true;
@@ -224,9 +228,45 @@ class DeviceManagerViewModel extends ChangeNotifier {
     loadDevices();
   }
 
+  void toggleSelect(String mac) {
+    final normalized = SharedDevice.normalizeMac(mac);
+    if (_selectedMacs.contains(normalized)) {
+      _selectedMacs.remove(normalized);
+    } else {
+      _selectedMacs.add(normalized);
+    }
+    notifyListeners();
+  }
+
+  void selectAll(List<SharedDevice> visibleDevices) {
+    for (final d in visibleDevices) {
+      _selectedMacs.add(SharedDevice.normalizeMac(d.macAddress));
+    }
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    _selectedMacs.clear();
+    notifyListeners();
+  }
+
+  void deleteSelectedDevices() {
+    if (_selectedMacs.isEmpty) return;
+    final count = _selectedMacs.length;
+    _repository.deleteDevices(_selectedMacs);
+    if (_selectedDevice != null && _selectedMacs.contains(_selectedDevice!.macAddress)) {
+      _selectedDevice = null;
+    }
+    _selectedMacs.clear();
+    _feedbackMessage = count == 1 ? 'Deleted 1 device' : 'Deleted $count devices';
+    loadDevices();
+  }
+
   void deleteDevice(String mac) {
+    final normalized = SharedDevice.normalizeMac(mac);
     _repository.deleteDevice(mac);
-    if (_selectedDevice?.macAddress == SharedDevice.normalizeMac(mac)) {
+    _selectedMacs.remove(normalized);
+    if (_selectedDevice?.macAddress == normalized) {
       _selectedDevice = null;
     }
     _feedbackMessage = 'Deleted device $mac';

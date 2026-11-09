@@ -249,6 +249,9 @@ class DeviceManagerView extends StatelessWidget {
           ),
         ),
 
+        // Contextual Batch Action Bar (when vm.hasSelection)
+        if (vm.hasSelection) _buildBatchActionBar(context, vm),
+
         // Primary Data Workspace (Tier 4) - High-Density Virtualized Data Table
         Expanded(
           child: vm.devices.isEmpty
@@ -256,7 +259,7 @@ class DeviceManagerView extends StatelessWidget {
               : SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
-                    width: 1050,
+                    width: 1100,
                     child: Column(
                       children: [
                         // Table Header
@@ -344,11 +347,34 @@ class DeviceManagerView extends StatelessWidget {
   }
 
   Widget _buildTableHeader(BuildContext context, DeviceManagerViewModel vm) {
+    final allSelected = vm.devices.isNotEmpty &&
+        vm.devices.every((d) => vm.isMacSelected(d.macAddress));
+    final someSelected =
+        vm.devices.any((d) => vm.isMacSelected(d.macAddress));
+    final bool? masterCheckboxValue =
+        allSelected ? true : (someSelected ? null : false);
+
     return Container(
       color: AppTheme.surfaceHighest,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
+          // Multi-Select Master Checkbox
+          SizedBox(
+            width: 44,
+            child: Checkbox(
+              tristate: true,
+              value: masterCheckboxValue,
+              onChanged: (_) {
+                if (allSelected) {
+                  vm.clearSelection();
+                } else {
+                  vm.selectAll(vm.devices);
+                }
+              },
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
           // MAC Address
           _buildHeaderColumn('MAC ADDRESS', 'mac', 160, vm),
           // Device Name
@@ -426,6 +452,7 @@ class DeviceManagerView extends StatelessWidget {
     required DateFormat dateFormat,
   }) {
     final cat = vm.resolveCategory(device.deviceType);
+    final isChecked = vm.isMacSelected(device.macAddress);
 
     return InkWell(
       onTap: () => vm.selectDevice(device),
@@ -452,10 +479,21 @@ class DeviceManagerView extends StatelessWidget {
       child: Container(
         color: isSelected
             ? AppTheme.primaryAccent.withValues(alpha: 0.15)
-            : Colors.transparent,
+            : (isChecked
+                ? AppTheme.primaryAccent.withValues(alpha: 0.08)
+                : Colors.transparent),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
+            // Row Checkbox
+            SizedBox(
+              width: 44,
+              child: Checkbox(
+                value: isChecked,
+                onChanged: (_) => vm.toggleSelect(device.macAddress),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
             // MAC Address (Monospace)
             SizedBox(
               width: 160,
@@ -911,6 +949,112 @@ class DeviceManagerView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBatchActionBar(BuildContext context, DeviceManagerViewModel vm) {
+    final count = vm.selectedMacs.length;
+    final label = count == 1 ? '1 device selected' : '$count devices selected';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.error.withValues(alpha: 0.1),
+        border: Border(
+          bottom: BorderSide(color: AppTheme.error.withValues(alpha: 0.3)),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Count Chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.error.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.error.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_box_outlined, size: 14, color: AppTheme.error),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Deselect All Action
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey[400],
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            icon: const Icon(Icons.close, size: 14),
+            label: const Text('Deselect All', style: TextStyle(fontSize: 12)),
+            onPressed: vm.clearSelection,
+          ),
+          const Spacer(),
+          // Delete Selected Button
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            icon: const Icon(Icons.delete_sweep, size: 16),
+            label: Text(
+              'Delete Selected ($count)',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () => _confirmBatchDelete(context, vm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBatchDelete(
+    BuildContext context,
+    DeviceManagerViewModel vm,
+  ) {
+    final count = vm.selectedMacs.length;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.error, size: 22),
+            SizedBox(width: 8),
+            Text('Confirm Batch Deletion', style: TextStyle(fontSize: 15)),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete $count devices from the shared database? This action cannot be undone.',
+          style: const TextStyle(fontSize: 12, height: 1.4),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              vm.deleteSelectedDevices();
+            },
+            child: const Text('Delete Devices'),
+          ),
+        ],
       ),
     );
   }

@@ -1232,10 +1232,32 @@ void main() {
       ]);
       expect(repo.getDeviceCount(), 2);
 
-      // Delete
+      // Delete single
       repo.deleteDevice('00:11:22:33:44:55');
       expect(repo.getDeviceCount(), 1);
       expect(repo.getDeviceByMac('00:11:22:33:44:55'), isNull);
+
+      // Batch Delete
+      repo.upsertDevice(SharedDevice(
+        macAddress: '11:22:33:44:55:66',
+        name: 'Batch 1',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      repo.upsertDevice(SharedDevice(
+        macAddress: '22:33:44:55:66:77',
+        name: 'Batch 2',
+        sourceApp: 'test',
+        createdAt: now,
+        updatedAt: now,
+      ));
+      expect(repo.getDeviceCount(), 3);
+
+      repo.deleteDevices(['11:22:33:44:55:66', '22:33:44:55:66:77']);
+      expect(repo.getDeviceCount(), 1);
+      expect(repo.getDeviceByMac('11:22:33:44:55:66'), isNull);
+      expect(repo.getDeviceByMac('22:33:44:55:66:77'), isNull);
     });
   });
 
@@ -1325,6 +1347,62 @@ void main() {
       // Clear selection
       vm.selectDevice(null);
       expect(vm.selectedDevice, isNull);
+    });
+
+    test('supports multi-select, toggleSelect, selectAll, clearSelection, and batch delete', () async {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      final repo = DeviceRepository(database: db);
+      final vm = DeviceManagerViewModel(repository: repo);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      vm.addDevice(rawMac: '11:11:11:11:11:11', name: 'Dev 1');
+      vm.addDevice(rawMac: '22:22:22:22:22:22', name: 'Dev 2');
+      vm.addDevice(rawMac: '33:33:33:33:33:33', name: 'Dev 3');
+      expect(vm.devices.length, 3);
+
+      expect(vm.hasSelection, isFalse);
+      expect(vm.selectedMacs.isEmpty, isTrue);
+
+      // Toggle single device
+      vm.toggleSelect('11:11:11:11:11:11');
+      expect(vm.hasSelection, isTrue);
+      expect(vm.selectedMacs.length, 1);
+      expect(vm.isMacSelected('11:11:11:11:11:11'), isTrue);
+      expect(vm.isMacSelected('22:22:22:22:22:22'), isFalse);
+
+      // Toggle off
+      vm.toggleSelect('11:11:11:11:11:11');
+      expect(vm.hasSelection, isFalse);
+      expect(vm.isMacSelected('11:11:11:11:11:11'), isFalse);
+
+      // Select all visible
+      vm.selectAll(vm.devices);
+      expect(vm.selectedMacs.length, 3);
+      expect(vm.isMacSelected('11:11:11:11:11:11'), isTrue);
+      expect(vm.isMacSelected('22:22:22:22:22:22'), isTrue);
+      expect(vm.isMacSelected('33:33:33:33:33:33'), isTrue);
+
+      // Clear selection
+      vm.clearSelection();
+      expect(vm.hasSelection, isFalse);
+      expect(vm.selectedMacs.isEmpty, isTrue);
+
+      // Select 2 devices and delete
+      vm.toggleSelect('11:11:11:11:11:11');
+      vm.toggleSelect('22:22:22:22:22:22');
+      expect(vm.selectedMacs.length, 2);
+
+      vm.deleteSelectedDevices();
+      expect(vm.devices.length, 1);
+      expect(vm.devices.first.macAddress, '33:33:33:33:33:33');
+      expect(vm.hasSelection, isFalse);
+      expect(vm.selectedMacs.isEmpty, isTrue);
+      expect(vm.feedbackMessage, 'Deleted 2 devices');
+
+      // Delete when selection is empty does nothing
+      vm.deleteSelectedDevices();
+      expect(vm.devices.length, 1);
     });
   });
 }

@@ -11,6 +11,7 @@ import 'package:net_app_launcher/ui/views/apps/app_card_item.dart';
 import 'package:net_app_launcher/ui/views/apps/app_details_dialog.dart';
 import 'package:net_app_launcher/ui/views/devices/add_device_dialog.dart';
 import 'package:net_app_launcher/ui/views/devices/create_category_dialog.dart';
+import 'package:net_app_launcher/ui/views/devices/device_manager_view.dart';
 import 'package:net_app_launcher/ui/views/devices/edit_device_dialog.dart';
 import 'package:net_app_launcher/ui/views/launcher_self_update_dialog.dart';
 import 'package:network_suite_shared/network_suite_shared.dart';
@@ -461,5 +462,68 @@ void main() {
     expect(createdId, 'access_point');
     expect(createdLabel, 'Access Point');
     expect(createdIcon, isNotNull);
+  });
+
+  testWidgets('DeviceManagerView supports multi-selection and batch delete with confirmation', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final repo = DeviceRepository(database: db);
+    final vm = DeviceManagerViewModel(repository: repo);
+    addTearDown(() => vm.dispose());
+
+    vm.addDevice(rawMac: '11:22:33:44:55:66', name: 'Server Alpha');
+    vm.addDevice(rawMac: '66:55:44:33:22:11', name: 'Printer Beta');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<DeviceManagerViewModel>.value(
+          value: vm,
+          child: const Scaffold(
+            body: DeviceManagerView(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Server Alpha'), findsOneWidget);
+    expect(find.text('Printer Beta'), findsOneWidget);
+
+    // Initial state: no batch action bar
+    expect(find.textContaining('devices selected'), findsNothing);
+
+    // Tap master checkbox (in header)
+    final masterCheckbox = find.byType(Checkbox).first;
+    await tester.tap(masterCheckbox);
+    await tester.pump();
+
+    // Verify batch action bar is shown
+    expect(find.text('2 devices selected'), findsOneWidget);
+    expect(find.text('Delete Selected (2)'), findsOneWidget);
+
+    // Tap "Delete Selected (2)"
+    await tester.tap(find.text('Delete Selected (2)'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Confirm dialog is visible
+    expect(find.text('Confirm Batch Deletion'), findsOneWidget);
+    expect(find.textContaining('Are you sure you want to delete 2 devices'), findsOneWidget);
+
+    // Tap "Delete Devices"
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete Devices'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Verify devices were deleted
+    expect(find.text('Server Alpha'), findsNothing);
+    expect(find.text('Printer Beta'), findsNothing);
+    expect(vm.devices.isEmpty, isTrue);
   });
 }

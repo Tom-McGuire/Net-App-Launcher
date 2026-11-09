@@ -78,6 +78,12 @@ class DeviceRepository {
     _database.deleteDevice(mac);
   }
 
+  void deleteDevices(Iterable<String> macAddresses) {
+    for (final mac in macAddresses) {
+      _database.deleteDevice(mac);
+    }
+  }
+
   void importDevices(List<SharedDevice> devices) {
     _database.importBatch(devices);
   }
