@@ -15,6 +15,7 @@ import 'package:net_app_launcher/data/services/device_export_service.dart';
 import 'package:net_app_launcher/data/services/github_service.dart';
 import 'package:net_app_launcher/data/services/local_app_registry.dart';
 import 'package:net_app_launcher/domain/models/dependency_info.dart';
+import 'package:net_app_launcher/domain/models/network_adapter_option.dart';
 import 'package:net_app_launcher/domain/models/release_info.dart';
 import 'package:net_app_launcher/domain/models/suite_app.dart';
 import 'package:net_app_launcher/ui/view_models/device_manager_view_model.dart';
@@ -30,6 +31,21 @@ class FakeHttpClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) => handler(request);
+}
+
+class RecordingRunnerService extends AppRunnerService {
+  List<String>? lastArguments;
+
+  @override
+  Future<Process> launchApp({
+    required String appId,
+    required String executablePath,
+    List<String> arguments = const [],
+    void Function()? onExited,
+  }) async {
+    lastArguments = arguments;
+    throw Exception('Simulated test execution');
+  }
 }
 
 void main() {
@@ -757,6 +773,21 @@ void main() {
       expect(resolved.isInstalled, isTrue);
       expect(resolved.version, 'TShark (Wireshark) 4.2.0');
     });
+
+    test('NetworkAdapterOption model, formatting, and equality', () async {
+      const opt1 = NetworkAdapterOption(name: 'eth0', ipAddress: '192.168.1.100');
+      const opt2 = NetworkAdapterOption(name: 'eth0', ipAddress: '192.168.1.100');
+      const opt3 = NetworkAdapterOption(name: 'wlan0', ipAddress: '10.0.0.50');
+
+      expect(opt1.displayLabel, 'eth0 (192.168.1.100)');
+      expect(opt1.toString(), 'eth0 (192.168.1.100)');
+      expect(opt1, equals(opt2));
+      expect(opt1.hashCode, equals(opt2.hashCode));
+      expect(opt1, isNot(equals(opt3)));
+
+      final discovered = await NetworkAdapterOption.discoverAdapters();
+      expect(discovered, isA<List<NetworkAdapterOption>>());
+    });
   });
 
   group('LocalAppRegistry Executable Discovery', () {
@@ -1185,6 +1216,75 @@ void main() {
       final resetApp = vm.apps.firstWhere((a) => a.id == installedApp.id);
       expect(resetApp.status, AppStatus.notInstalled);
       expect(resetApp.executablePath, isNull);
+    });
+
+    test('LauncherViewModel manages network adapter selection and passes arguments on launch', () async {
+      final fakeClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          Stream.value(utf8.encode(jsonEncode({
+            'tag_name': 'v1.0.0',
+            'name': 'v1.0.0',
+            'published_at': '2026-11-01T12:00:00Z',
+            'body': '',
+            'assets': [],
+          }))),
+          200,
+        );
+      });
+
+      final recordingRunner = RecordingRunnerService();
+      final gh = GitHubService(client: fakeClient, customCacheDir: tempDir.path);
+      final repo = SuiteRepository(
+        gitHubService: gh,
+        registry: registry,
+        runnerService: recordingRunner,
+      );
+      final vm = LauncherViewModel(repository: repo);
+
+      const eth0 = NetworkAdapterOption(name: 'eth0', ipAddress: '192.168.1.10');
+      const wlan0 = NetworkAdapterOption(name: 'wlan0', ipAddress: '10.0.0.5');
+
+      // Refresh with mock list
+      await vm.refreshAdapters(discoverFn: () async => [eth0, wlan0]);
+      expect(vm.adapters.length, 2);
+      expect(vm.selectedAdapter, eth0); // Defaults to first
+
+      // User selects wlan0
+      vm.setSelectedAdapter(wlan0);
+      expect(vm.selectedAdapter, wlan0);
+
+      // Refresh retaining wlan0
+      await vm.refreshAdapters(discoverFn: () async => [eth0, wlan0]);
+      expect(vm.selectedAdapter, wlan0);
+
+      // Refresh when wlan0 removed falls back to first
+      await vm.refreshAdapters(discoverFn: () async => [eth0]);
+      expect(vm.selectedAdapter, eth0);
+
+      // User selects App Default (None)
+      vm.setSelectedAdapter(null);
+      expect(vm.selectedAdapter, isNull);
+
+      // Refresh retains null because user explicitly selected null
+      await vm.refreshAdapters(discoverFn: () async => [eth0, wlan0]);
+      expect(vm.selectedAdapter, isNull);
+
+      // Verify launch with adapter arguments
+      vm.setSelectedAdapter(wlan0);
+      final binFile = File(p.join(tempDir.path, 'mock_bin'))..createSync();
+      final testApp = SuiteApp(
+        definition: SuiteConstants.catalog.first,
+        status: AppStatus.installed,
+        executablePath: binFile.path,
+      );
+
+      await vm.launch(testApp);
+      expect(recordingRunner.lastArguments, ['--adapter-ip', '10.0.0.5', '--adapter-name', 'wlan0']);
+
+      // Launch with null adapter passes no arguments
+      vm.setSelectedAdapter(null);
+      await vm.launch(testApp);
+      expect(recordingRunner.lastArguments, isEmpty);
     });
   });
 

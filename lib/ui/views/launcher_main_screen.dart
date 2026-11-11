@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
+import '../../domain/models/network_adapter_option.dart';
 import '../view_models/device_manager_view_model.dart';
 import '../view_models/launcher_view_model.dart';
 import 'apps/apps_dashboard_view.dart';
@@ -125,6 +126,77 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                   badgeColor: AppTheme.primaryAccent,
                   isSelected: launcherVm.selectedTabIndex == 1,
                   onTap: () => launcherVm.switchTab(1),
+                ),
+
+                const Spacer(),
+
+                // Zone 2 Default Network Adapter Selector
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Interface:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF252526),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppTheme.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<NetworkAdapterOption?>(
+                          value: (launcherVm.selectedAdapter != null &&
+                                  launcherVm.adapters.contains(launcherVm.selectedAdapter))
+                              ? launcherVm.selectedAdapter
+                              : null,
+                          isDense: true,
+                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          dropdownColor: const Color(0xFF252526),
+                          onChanged: (val) => launcherVm.setSelectedAdapter(val),
+                          items: [
+                            const DropdownMenuItem<NetworkAdapterOption?>(
+                              value: null,
+                              child: Text(
+                                'App Default (None)',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ),
+                            ...launcherVm.adapters.map(
+                              (opt) => DropdownMenuItem<NetworkAdapterOption?>(
+                                value: opt,
+                                child: Text(
+                                  opt.displayLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontFamily: 'Consolas',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        icon: const Icon(Icons.refresh, size: 16),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Refresh Network Interfaces',
+                        onPressed: launcherVm.refreshAdapters,
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(width: 16),

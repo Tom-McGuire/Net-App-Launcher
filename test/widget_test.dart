@@ -62,6 +62,9 @@ void main() {
     expect(find.text('NETWORK SUITE LAUNCHER'), findsOneWidget);
     expect(find.text('Store'), findsOneWidget);
     expect(find.text('Shared Devices'), findsOneWidget);
+    expect(find.text('Interface:'), findsOneWidget);
+    expect(find.text('App Default (None)'), findsOneWidget);
+    expect(find.byTooltip('Refresh Network Interfaces'), findsOneWidget);
 
     // Switch to Shared Devices tab
     await tester.tap(find.text('Shared Devices'));

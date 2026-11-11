@@ -150,7 +150,11 @@ class SuiteRepository {
   }
 
   /// Launches a suite app.
-  Future<Process> launchApp(SuiteApp app, {void Function()? onExited}) async {
+  Future<Process> launchApp(
+    SuiteApp app, {
+    List<String> arguments = const [],
+    void Function()? onExited,
+  }) async {
     final exe = app.executablePath;
     if (!LocalAppRegistry.executableExists(exe)) {
       throw Exception('Cannot launch ${app.name}: Executable not found');
@@ -159,6 +163,7 @@ class SuiteRepository {
     return _runnerService.launchApp(
       appId: app.id,
       executablePath: exe!,
+      arguments: arguments,
       onExited: onExited,
     );
   }

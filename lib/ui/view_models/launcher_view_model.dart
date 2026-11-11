@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
+import '../../domain/models/network_adapter_option.dart';
 import '../../domain/models/release_info.dart';
 import '../../domain/models/suite_app.dart';
 import '../../data/repositories/suite_repository.dart';
@@ -11,6 +12,7 @@ class LauncherViewModel extends ChangeNotifier {
   LauncherViewModel({SuiteRepository? repository})
       : _repository = repository ?? SuiteRepository() {
     loadApps();
+    refreshAdapters();
   }
 
   List<SuiteApp> _apps = [];
@@ -24,6 +26,9 @@ class LauncherViewModel extends ChangeNotifier {
   String? _errorMessage;
   int _selectedTabIndex = 0;
   ReleaseInfo? _launcherSelfUpdate;
+  List<NetworkAdapterOption> _adapters = [];
+  NetworkAdapterOption? _selectedAdapter;
+  bool _hasUserSelectedAdapter = false;
 
   List<SuiteApp> get apps => _apps;
   bool get isLoading => _isLoading;
@@ -36,6 +41,8 @@ class LauncherViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isRateLimited => _repository.isRateLimited;
   DateTime? get rateLimitResetTime => _repository.rateLimitResetTime;
+  List<NetworkAdapterOption> get adapters => _adapters;
+  NetworkAdapterOption? get selectedAdapter => _selectedAdapter;
 
   String? get rateLimitResetDescription {
     final reset = _repository.rateLimitResetTime;
@@ -100,6 +107,29 @@ class LauncherViewModel extends ChangeNotifier {
 
   void setSelectedCategory(String? category) {
     _selectedCategory = category;
+    notifyListeners();
+  }
+
+  void setSelectedAdapter(NetworkAdapterOption? adapter) {
+    _selectedAdapter = adapter;
+    _hasUserSelectedAdapter = true;
+    notifyListeners();
+  }
+
+  Future<void> refreshAdapters({
+    Future<List<NetworkAdapterOption>> Function()? discoverFn,
+  }) async {
+    final list = await (discoverFn != null
+        ? discoverFn()
+        : NetworkAdapterOption.discoverAdapters());
+    _adapters = list;
+    if (_selectedAdapter != null) {
+      if (!_adapters.contains(_selectedAdapter)) {
+        _selectedAdapter = _adapters.firstOrNull;
+      }
+    } else if (!_hasUserSelectedAdapter) {
+      _selectedAdapter = _adapters.firstOrNull;
+    }
     notifyListeners();
   }
 
@@ -207,9 +237,19 @@ class LauncherViewModel extends ChangeNotifier {
       notifyListeners();
     }
 
+    final launchArgs = <String>[
+      if (_selectedAdapter != null) ...[
+        '--adapter-ip',
+        _selectedAdapter!.ipAddress,
+        '--adapter-name',
+        _selectedAdapter!.name,
+      ],
+    ];
+
     try {
       await _repository.launchApp(
         app,
+        arguments: launchArgs,
         onExited: () {
           final curIdx = _apps.indexWhere((a) => a.id == app.id);
           if (curIdx != -1) {
