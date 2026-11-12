@@ -187,7 +187,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.primaryAccent),
+        side: BorderSide(color: AppTheme.primaryAccent),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620, maxHeight: 560),
@@ -205,7 +205,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                       color: AppTheme.warning.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.system_update,
                       size: 22,
                       color: AppTheme.warning,
@@ -225,7 +225,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                         ),
                         Text(
                           'Current: ${SuiteConstants.currentVersion}  •  New: ${widget.release.tagName}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontFamily: 'Consolas',
                             color: AppTheme.warning,
@@ -251,7 +251,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 8),
@@ -295,12 +295,12 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, size: 18, color: AppTheme.error),
+                      Icon(Icons.error_outline, size: 18, color: AppTheme.error),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(fontSize: 11, color: AppTheme.error),
+                          style: TextStyle(fontSize: 11, color: AppTheme.error),
                         ),
                       ),
                     ],
@@ -328,7 +328,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                           Expanded(
                             child: Text(
                               _status,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryAccent,
@@ -339,7 +339,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                           if (_totalBytes > 0)
                             Text(
                               '${(_progress * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontFamily: 'Consolas',
                                 fontWeight: FontWeight.bold,
@@ -363,7 +363,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                           style: TextStyle(
                             fontFamily: 'Consolas',
                             fontSize: 10,
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: AppTheme.textPrimary.withValues(alpha: 0.5),
                           ),
                         ),
                     ],
@@ -377,7 +377,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                     Icon(
                       isInstaller ? Icons.verified : Icons.folder_zip,
                       size: 14,
-                      color: isInstaller ? AppTheme.success : Colors.white.withValues(alpha: 0.6),
+                      color: isInstaller ? AppTheme.success : AppTheme.textPrimary.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -388,7 +388,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                         style: TextStyle(
                           fontFamily: 'Consolas',
                           fontSize: 11,
-                          color: isInstaller ? AppTheme.success : Colors.white.withValues(alpha: 0.6),
+                          color: isInstaller ? AppTheme.success : AppTheme.textPrimary.withValues(alpha: 0.6),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -425,13 +425,13 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppTheme.success,
-                            foregroundColor: Colors.black,
+                            foregroundColor: AppTheme.onFilled,
                           ),
                           icon: _isUpdating
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 14,
                                   height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.onFilled),
                                 )
                               : const Icon(Icons.system_update_alt, size: 16),
                           label: Text(_isUpdating ? 'Updating...' : 'Install & Update'),
@@ -441,13 +441,13 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppTheme.primaryAccent,
-                            foregroundColor: Colors.black,
+                            foregroundColor: AppTheme.onFilled,
                           ),
                           icon: _isUpdating
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 14,
                                   height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.onFilled),
                                 )
                               : const Icon(Icons.download_for_offline, size: 16),
                           label: Text(_isUpdating ? 'Downloading...' : 'Update & Open'),
@@ -457,7 +457,7 @@ class _LauncherSelfUpdateDialogState extends State<LauncherSelfUpdateDialog> {
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppTheme.warning,
-                            foregroundColor: Colors.black,
+                            foregroundColor: AppTheme.onFilled,
                           ),
                           icon: const Icon(Icons.download, size: 15),
                           label: Text('Download ${widget.release.tagName}'),

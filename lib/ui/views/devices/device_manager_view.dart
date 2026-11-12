@@ -25,7 +25,7 @@ class DeviceManagerView extends StatelessWidget {
         // Filter & Triage Toolbar (Tier 3)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.surface,
             border: Border(bottom: BorderSide(color: AppTheme.border)),
           ),
@@ -84,7 +84,7 @@ class DeviceManagerView extends StatelessWidget {
                           size: 14,
                           color: vm.hideDefaultNamed
                               ? AppTheme.primaryAccent
-                              : Colors.grey,
+                              : AppTheme.textSecondary,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -96,7 +96,7 @@ class DeviceManagerView extends StatelessWidget {
                                 : FontWeight.normal,
                             color: vm.hideDefaultNamed
                                 ? AppTheme.primaryAccent
-                                : Colors.grey[400],
+                                : AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -145,7 +145,7 @@ class DeviceManagerView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: AppTheme.border),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.add, size: 12, color: AppTheme.primaryAccent),
@@ -315,7 +315,7 @@ class DeviceManagerView extends StatelessWidget {
         avatar: Icon(
           icon,
           size: 13,
-          color: isSelected ? accentColor : Colors.grey,
+          color: isSelected ? accentColor : AppTheme.textSecondary,
         ),
         label: Row(
           mainAxisSize: MainAxisSize.min,
@@ -384,21 +384,21 @@ class DeviceManagerView extends StatelessWidget {
           // Vendor
           _buildHeaderColumn('HARDWARE VENDOR', 'vendor', 180, vm),
           // Source App
-          const SizedBox(
+          SizedBox(
             width: 100,
             child: Text(
               'SOURCE',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
             ),
           ),
           // Updated
           _buildHeaderColumn('LAST MODIFIED', 'updated_at', 150, vm),
           // Actions
-          const SizedBox(
+          SizedBox(
             width: 70,
             child: Text(
               'ACTIONS',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
             ),
           ),
         ],
@@ -423,7 +423,7 @@ class DeviceManagerView extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: isSorted ? AppTheme.primaryAccent : Colors.grey,
+              color: isSorted ? AppTheme.primaryAccent : AppTheme.textSecondary,
             ),
           ),
           if (isSorted) ...[
@@ -499,7 +499,7 @@ class DeviceManagerView extends StatelessWidget {
               width: 160,
               child: Text(
                 device.macAddress,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Consolas',
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -524,7 +524,7 @@ class DeviceManagerView extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const Icon(Icons.edit, size: 13, color: Colors.grey),
+                    icon: Icon(Icons.edit, size: 13, color: AppTheme.textSecondary),
                     tooltip: 'Edit device details',
                     onPressed: () {
                       showDialog(
@@ -595,13 +595,13 @@ class DeviceManagerView extends StatelessWidget {
                           Text(c.label, style: const TextStyle(fontSize: 12)),
                           if (c.key == cat.key) ...[
                             const Spacer(),
-                            const Icon(Icons.check, size: 14, color: AppTheme.primaryAccent),
+                            Icon(Icons.check, size: 14, color: AppTheme.primaryAccent),
                           ],
                         ],
                       ),
                     )),
                     const PopupMenuDivider(),
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: '__new__',
                       height: 32,
                       child: Row(
@@ -632,14 +632,14 @@ class DeviceManagerView extends StatelessWidget {
                             cat.label,
                             style: TextStyle(
                               fontSize: 11,
-                              color: cat.color ?? Colors.grey[200],
+                              color: cat.color ?? AppTheme.textSecondary,
                               fontWeight: FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 3),
-                        Icon(Icons.arrow_drop_down, size: 13, color: Colors.grey[500]),
+                        Icon(Icons.arrow_drop_down, size: 13, color: AppTheme.textSecondary),
                       ],
                     ),
                   ),
@@ -654,7 +654,7 @@ class DeviceManagerView extends StatelessWidget {
                 device.vendor ?? 'Unknown Hardware',
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.8),
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -673,7 +673,7 @@ class DeviceManagerView extends StatelessWidget {
                   device.sourceApp,
                   style: TextStyle(
                     fontSize: 9,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: AppTheme.textPrimary.withValues(alpha: 0.6),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -685,10 +685,10 @@ class DeviceManagerView extends StatelessWidget {
               width: 150,
               child: Text(
                 dateFormat.format(device.updatedAt),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Consolas',
                   fontSize: 11,
-                  color: Colors.grey,
+                  color: AppTheme.textSecondary,
                 ),
               ),
             ),
@@ -699,7 +699,7 @@ class DeviceManagerView extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 15, color: AppTheme.error),
+                    icon: Icon(Icons.delete_outline, size: 15, color: AppTheme.error),
                     tooltip: 'Delete Device',
                     onPressed: () {
                       _confirmDelete(context, vm, device);
@@ -722,7 +722,7 @@ class DeviceManagerView extends StatelessWidget {
     final selected = vm.selectedDevice;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.surface,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
@@ -764,13 +764,13 @@ class DeviceManagerView extends StatelessWidget {
                   const SizedBox(width: 16),
                   Text(
                     'Vendor: ${selected.vendor ?? 'Unknown'}',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   ),
                   if (selected.notes != null && selected.notes!.isNotEmpty) ...[
                     const SizedBox(width: 16),
                     Text(
                       'Notes: ${selected.notes}',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ],
                   const Spacer(),
@@ -819,18 +819,18 @@ class DeviceManagerView extends StatelessWidget {
                   vm.hideDefaultNamed
                       ? 'Showing ${vm.devices.length} of ${vm.totalCount} devices (unnamed hidden)'
                       : 'Showing ${vm.devices.length} of ${vm.totalCount} devices',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(width: 16),
-                const Text('•', style: TextStyle(color: Colors.grey)),
+                Text('•', style: TextStyle(color: AppTheme.textSecondary)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Cross-Process Database: ${SharedDeviceDatabase.getDefaultDatabasePath()}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Consolas',
                       fontSize: 10,
-                      color: Colors.grey,
+                      color: AppTheme.textSecondary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -838,7 +838,7 @@ class DeviceManagerView extends StatelessWidget {
                 if (vm.feedbackMessage != null) ...[
                   Text(
                     vm.feedbackMessage!,
-                    style: const TextStyle(fontSize: 11, color: AppTheme.success),
+                    style: TextStyle(fontSize: 11, color: AppTheme.success),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
@@ -879,7 +879,7 @@ class DeviceManagerView extends StatelessWidget {
                   'There are ${vm.totalCount} devices in the inventory, but they have default MAC labels and "Hide Unnamed" is active.\n'
                   'Toggle off "Hide Unnamed" to view and label scanned devices, or register a new device.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
                 ),
                 const SizedBox(height: 18),
                 Row(
@@ -929,11 +929,11 @@ class DeviceManagerView extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Devices discovered by arp-scout or packet-inspector will automatically populate here.\n'
                 'You can also manually register devices or import a list from CSV/JSON.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
@@ -978,11 +978,11 @@ class DeviceManagerView extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_box_outlined, size: 14, color: AppTheme.error),
+                Icon(Icons.check_box_outlined, size: 14, color: AppTheme.error),
                 const SizedBox(width: 6),
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.error,
@@ -995,7 +995,7 @@ class DeviceManagerView extends StatelessWidget {
           // Deselect All Action
           TextButton.icon(
             style: TextButton.styleFrom(
-              foregroundColor: Colors.grey[400],
+              foregroundColor: AppTheme.textSecondary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             ),
             icon: const Icon(Icons.close, size: 14),
@@ -1030,7 +1030,7 @@ class DeviceManagerView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: AppTheme.error, size: 22),
             SizedBox(width: 8),

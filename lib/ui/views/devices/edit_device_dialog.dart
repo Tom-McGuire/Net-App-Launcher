@@ -83,7 +83,7 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.border),
+        side: BorderSide(color: AppTheme.border),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
@@ -97,7 +97,7 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                 // Header
                 Row(
                   children: [
-                    const Icon(Icons.edit_note, size: 20, color: AppTheme.primaryAccent),
+                    Icon(Icons.edit_note, size: 20, color: AppTheme.primaryAccent),
                     const SizedBox(width: 8),
                     const Text(
                       'Edit Device Details',
@@ -124,13 +124,13 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                   ),
                   child: Row(
                     children: [
-                      const Text(
+                      Text(
                         'MAC Address: ',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                       ),
                       Text(
                         widget.device.macAddress,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Consolas',
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -143,7 +143,7 @@ class _EditDeviceDialogState extends State<EditDeviceDialog> {
                           'Source: ${widget.device.sourceApp}',
                           textAlign: TextAlign.end,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
                         ),
                       ),
                     ],

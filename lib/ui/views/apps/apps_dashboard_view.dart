@@ -17,7 +17,7 @@ class AppsDashboardView extends StatelessWidget {
         // Filter & Search Toolbar (Tier 3)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.surface,
             border: Border(bottom: BorderSide(color: AppTheme.border)),
           ),
@@ -78,7 +78,7 @@ class AppsDashboardView extends StatelessWidget {
                     'Developer View',
                     style: TextStyle(
                       fontSize: 11,
-                      color: vm.showUnreleased ? AppTheme.primaryAccent : Colors.grey,
+                      color: vm.showUnreleased ? AppTheme.primaryAccent : AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -179,7 +179,7 @@ class AppsDashboardView extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.7),
                   height: 1.4,
                 ),
               ),

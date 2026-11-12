@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:network_suite_shared/network_suite_shared.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
 import '../../domain/models/network_adapter_option.dart';
@@ -30,6 +31,14 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
     super.dispose();
   }
 
+  /// Persists the opposite theme mode; every open suite app (including this
+  /// one) re-renders via `SharedDeviceDatabase.onDatabaseChanged`.
+  Future<void> _toggleTheme() async {
+    final db = context.read<SharedDeviceDatabase>();
+    if (!db.isInitialized) return;
+    await db.setThemeMode(AppTheme.isDark ? 'light' : 'dark');
+  }
+
   @override
   Future<AppExitResponse> didRequestAppExit() async {
     // Graceful desktop exit handler
@@ -49,7 +58,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
           Container(
             height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppTheme.surface,
               border: Border(bottom: BorderSide(color: AppTheme.border)),
             ),
@@ -69,7 +78,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                         color: AppTheme.primaryAccent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.rocket_launch,
                         size: 20,
                         color: AppTheme.primaryAccent,
@@ -84,7 +93,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'NETWORK SUITE LAUNCHER',
                         style: TextStyle(
@@ -98,7 +107,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                         'Desktop Store & Shared Device Inventory',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey,
+                          color: AppTheme.textSecondary,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -134,11 +143,11 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Interface:',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey,
+                        color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -147,7 +156,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                       height: 32,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF252526),
+                        color: AppTheme.inputFill,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: AppTheme.border),
                       ),
@@ -158,15 +167,15 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                               ? launcherVm.selectedAdapter
                               : null,
                           isDense: true,
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
-                          dropdownColor: const Color(0xFF252526),
+                          style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                          dropdownColor: AppTheme.inputFill,
                           onChanged: (val) => launcherVm.setSelectedAdapter(val),
                           items: [
-                            const DropdownMenuItem<NetworkAdapterOption?>(
+                            DropdownMenuItem<NetworkAdapterOption?>(
                               value: null,
                               child: Text(
                                 'App Default (None)',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                               ),
                             ),
                             ...launcherVm.adapters.map(
@@ -223,11 +232,11 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.arrow_circle_up, size: 13, color: AppTheme.warning),
+                          Icon(Icons.arrow_circle_up, size: 13, color: AppTheme.warning),
                           const SizedBox(width: 5),
                           Text(
                             'Launcher ${launcherVm.launcherSelfUpdate!.tagName} Available',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Consolas',
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -241,13 +250,38 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
                   const SizedBox(width: 12),
                 ],
 
+                // Suite-wide Light / Dark mode toggle (synced via shared DB)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Light Mode',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.isDark
+                            ? AppTheme.textSecondary
+                            : AppTheme.primaryAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Switch(
+                      key: const Key('theme_toggle_button'),
+                      value: !AppTheme.isDark,
+                      onChanged: (_) => _toggleTheme(),
+                      activeThumbColor: AppTheme.primaryAccent,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+
                 // Header Info
-                const Text(
+                Text(
                   'GitHub: Tom-McGuire',
                   style: TextStyle(
                     fontFamily: 'Consolas',
                     fontSize: 11,
-                    color: Colors.grey,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],
@@ -262,12 +296,12 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
               color: AppTheme.warning.withValues(alpha: 0.15),
               child: Row(
                 children: [
-                  const Icon(Icons.hourglass_top, size: 16, color: AppTheme.warning),
+                  Icon(Icons.hourglass_top, size: 16, color: AppTheme.warning),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'GitHub API rate limit reached (60 req/hr per IP). ${launcherVm.rateLimitResetDescription ?? 'Resetting shortly.'} • Serving locally cached releases.',
-                      style: const TextStyle(fontSize: 12, color: AppTheme.warning),
+                      style: TextStyle(fontSize: 12, color: AppTheme.warning),
                     ),
                   ),
                 ],
@@ -280,12 +314,12 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
               color: AppTheme.error.withValues(alpha: 0.2),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: AppTheme.error),
+                  Icon(Icons.error_outline, size: 16, color: AppTheme.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       launcherVm.errorMessage!,
-                      style: const TextStyle(fontSize: 12, color: AppTheme.error),
+                      style: TextStyle(fontSize: 12, color: AppTheme.error),
                     ),
                   ),
                 ],
@@ -336,7 +370,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
             Icon(
               icon,
               size: 15,
-              color: isSelected ? AppTheme.primaryAccent : Colors.grey,
+              color: isSelected ? AppTheme.primaryAccent : AppTheme.textSecondary,
             ),
             const SizedBox(width: 8),
             Text(
@@ -344,7 +378,7 @@ class _LauncherMainScreenState extends State<LauncherMainScreen>
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : Colors.grey,
+                color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
               ),
             ),
             if (badgeCount > 0) ...[

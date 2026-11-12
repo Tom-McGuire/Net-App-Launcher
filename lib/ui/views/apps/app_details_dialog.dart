@@ -22,7 +22,7 @@ class AppDetailsDialog extends StatelessWidget {
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.border),
+        side: BorderSide(color: AppTheme.border),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 650, maxHeight: 550),
@@ -51,7 +51,7 @@ class AppDetailsDialog extends StatelessWidget {
                           '${app.definition.repoName} • ${app.category}',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: AppTheme.textPrimary.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -67,7 +67,7 @@ class AppDetailsDialog extends StatelessWidget {
                       ),
                       child: Text(
                         release.tagName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Consolas',
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -101,7 +101,7 @@ class AppDetailsDialog extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: AppTheme.textPrimary.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -135,15 +135,15 @@ class AppDetailsDialog extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontFamily: 'Consolas',
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: AppTheme.textPrimary.withValues(alpha: 0.5),
                   ),
                 ),
               ] else ...[
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Text(
                       'No published releases found for this repository on GitHub.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                     ),
                   ),
                 ),
@@ -158,7 +158,7 @@ class AppDetailsDialog extends StatelessWidget {
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.error,
-                        side: const BorderSide(color: AppTheme.error),
+                        side: BorderSide(color: AppTheme.error),
                       ),
                       icon: const Icon(Icons.delete_outline, size: 15),
                       label: const Text('Uninstall'),

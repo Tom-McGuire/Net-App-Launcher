@@ -101,7 +101,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.border),
+        side: BorderSide(color: AppTheme.border),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
@@ -115,7 +115,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                 // Header
                 Row(
                   children: [
-                    const Icon(Icons.category, size: 20, color: AppTheme.primaryAccent),
+                    Icon(Icons.category, size: 20, color: AppTheme.primaryAccent),
                     const SizedBox(width: 8),
                     const Text(
                       'Create Custom Category',
@@ -198,7 +198,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                           child: Icon(
                             icon,
                             size: 18,
-                            color: isSel ? AppTheme.primaryAccent : Colors.grey,
+                            color: isSel ? AppTheme.primaryAccent : AppTheme.textSecondary,
                           ),
                         ),
                       ),
@@ -235,7 +235,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                               color: c,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isSel ? Colors.white : Colors.transparent,
+                                color: isSel ? AppTheme.textPrimary : Colors.transparent,
                                 width: 2,
                               ),
                             ),

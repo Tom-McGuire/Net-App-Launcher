@@ -75,7 +75,7 @@ class AppCardItem extends StatelessWidget {
                         '${app.definition.category} • ${app.definition.repoName}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: AppTheme.textPrimary.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -104,7 +104,7 @@ class AppCardItem extends StatelessWidget {
                 app.summary,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: AppTheme.textPrimary.withValues(alpha: 0.8),
                   height: 1.35,
                 ),
                 maxLines: 3,
@@ -124,12 +124,12 @@ class AppCardItem extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, size: 14, color: AppTheme.warning),
+                    Icon(Icons.warning_amber_rounded, size: 14, color: AppTheme.warning),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Requires ${app.dependencyInfo!.name} (${app.dependencyInfo!.installCommand})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
                           color: AppTheme.warning,
                           fontFamily: 'Consolas',
@@ -148,14 +148,14 @@ class AppCardItem extends StatelessWidget {
               LinearProgressIndicator(
                 value: app.downloadProgress > 0 ? app.downloadProgress : null,
                 backgroundColor: AppTheme.surfaceHighest,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryAccent),
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(2),
               ),
               const SizedBox(height: 4),
               Text(
                 app.statusMessage ?? 'Downloading...',
-                style: const TextStyle(fontSize: 10, color: AppTheme.primaryAccent),
+                style: TextStyle(fontSize: 10, color: AppTheme.primaryAccent),
               ),
             ],
 
@@ -172,7 +172,7 @@ class AppCardItem extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'Consolas',
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: AppTheme.textPrimary.withValues(alpha: 0.6),
                     ),
                   )
                 else if (release != null)
@@ -181,7 +181,7 @@ class AppCardItem extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'Consolas',
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: AppTheme.textPrimary.withValues(alpha: 0.6),
                     ),
                   )
                 else
@@ -189,7 +189,7 @@ class AppCardItem extends StatelessWidget {
                     'Unpublished',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: AppTheme.textPrimary.withValues(alpha: 0.4),
                     ),
                   ),
                 const Spacer(),
@@ -199,7 +199,7 @@ class AppCardItem extends StatelessWidget {
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primaryAccent,
-                      side: const BorderSide(color: AppTheme.primaryAccent),
+                      side: BorderSide(color: AppTheme.primaryAccent),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     ),
                     icon: const Icon(Icons.system_update_alt, size: 14),
@@ -217,7 +217,7 @@ class AppCardItem extends StatelessWidget {
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.error,
-                      side: const BorderSide(color: AppTheme.error),
+                      side: BorderSide(color: AppTheme.error),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     ),
                     icon: const Icon(Icons.stop_circle_outlined, size: 14),
@@ -235,7 +235,7 @@ class AppCardItem extends StatelessWidget {
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: app.isRunning ? AppTheme.warning : AppTheme.success,
-                      foregroundColor: Colors.black,
+                      foregroundColor: AppTheme.onFilled,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     ),
                     icon: Icon(
@@ -298,7 +298,7 @@ class AppCardItem extends StatelessWidget {
         icon = Icons.downloading;
         break;
       case AppStatus.notInstalled:
-        color = Colors.grey;
+        color = AppTheme.textSecondary;
         label = 'Available';
         icon = Icons.cloud_download_outlined;
         break;
@@ -308,7 +308,7 @@ class AppCardItem extends StatelessWidget {
         icon = Icons.error_outline;
         break;
       case AppStatus.checking:
-        color = Colors.grey;
+        color = AppTheme.textSecondary;
         label = 'Checking';
         icon = Icons.sync;
         break;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
@@ -5,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:net_app_launcher/core/app_theme.dart';
 import 'package:net_app_launcher/core/constants.dart';
 import 'package:net_app_launcher/data/repositories/device_repository.dart';
 import 'package:net_app_launcher/data/repositories/suite_repository.dart';
@@ -629,6 +631,65 @@ void main() {
       expect(default1.hasCustomName, isFalse);
       expect(default2.hasCustomName, isFalse);
       expect(default3.hasCustomName, isFalse);
+    });
+
+    test('SharedDeviceDatabase theme mode defaults to dark and persists changes', () async {
+      final db = SharedDeviceDatabase(customDb: sqlite3.openInMemory());
+      expect(await db.getThemeMode(), 'dark');
+
+      var notifications = 0;
+      final sub = db.onDatabaseChanged.listen((_) => notifications++);
+
+      await db.setThemeMode('light');
+      expect(await db.getThemeMode(), 'light');
+      await db.setThemeMode('dark');
+      expect(await db.getThemeMode(), 'dark');
+      await Future<void>.delayed(Duration.zero);
+      expect(notifications, 2);
+
+      await expectLater(db.setThemeMode('sepia'), throwsArgumentError);
+      await sub.cancel();
+      db.close();
+    });
+
+    test('SharedDeviceDatabase notifies when another process changes the theme', () async {
+      final dir = Directory.systemTemp.createTempSync('suite_theme_sync_');
+      final path = p.join(dir.path, 'shared_devices.db');
+      final a = SharedDeviceDatabase();
+      final b = SharedDeviceDatabase();
+      addTearDown(() {
+        a.close();
+        b.close();
+        dir.deleteSync(recursive: true);
+      });
+      await a.init(dbPath: path);
+      await b.init(dbPath: path);
+
+      final changed = Completer<void>();
+      final sub = a.onDatabaseChanged.listen((_) {
+        if (!changed.isCompleted) changed.complete();
+      });
+
+      await b.setThemeMode('light'); // separate connection == separate process
+      await changed.future.timeout(const Duration(seconds: 5));
+      expect(await a.getThemeMode(), 'light');
+      await sub.cancel();
+    });
+
+    test('AppTheme resolves tokens against isDark', () {
+      addTearDown(() => AppTheme.isDark = true);
+      AppTheme.applyThemeMode('light');
+      expect(AppTheme.isDark, isFalse);
+      expect(AppTheme.themeMode, 'light');
+      expect(AppTheme.scaffoldBackground, const Color(0xFFF3F4F6));
+      expect(AppTheme.surface, const Color(0xFFFFFFFF));
+      expect(AppTheme.textPrimary, const Color(0xFF111827));
+      expect(AppTheme.lightTheme().brightness, Brightness.light);
+
+      AppTheme.applyThemeMode('dark');
+      expect(AppTheme.isDark, isTrue);
+      expect(AppTheme.scaffoldBackground, const Color(0xFF141414));
+      expect(AppTheme.darkTheme().brightness, Brightness.dark);
     });
 
     test('SharedDeviceDatabase filters default-named devices when hideDefaultNamed is true', () {

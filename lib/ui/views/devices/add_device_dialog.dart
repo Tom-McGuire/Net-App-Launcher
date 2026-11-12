@@ -100,7 +100,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
       backgroundColor: AppTheme.surfaceHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.border),
+        side: BorderSide(color: AppTheme.border),
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
@@ -114,7 +114,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                 // Header
                 Row(
                   children: [
-                    const Icon(Icons.add_circle_outline, size: 20, color: AppTheme.primaryAccent),
+                    Icon(Icons.add_circle_outline, size: 20, color: AppTheme.primaryAccent),
                     const SizedBox(width: 8),
                     const Text(
                       'Register New Device',
@@ -206,7 +206,7 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                                     ),
                                   );
                                 },
-                                child: const Text(
+                                child: Text(
                                   '+ Custom',
                                   style: TextStyle(
                                     fontSize: 11,

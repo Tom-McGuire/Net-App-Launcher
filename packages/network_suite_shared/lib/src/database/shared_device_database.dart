@@ -20,6 +20,13 @@ class SharedDeviceDatabase {
   String? _databasePath;
   final StreamController<void> _changeController = StreamController<void>.broadcast();
 
+  /// Interval at which file-backed databases poll for writes made by *other*
+  /// processes (see [_startExternalChangeWatcher]).
+  static const Duration externalChangePollInterval = Duration(seconds: 1);
+
+  Timer? _externalChangeTimer;
+  int? _lastDataVersion;
+
   SharedDeviceDatabase({Database? customDb, String? customPath}) {
     if (customDb != null) {
       _db = customDb;
@@ -82,6 +89,37 @@ class SharedDeviceDatabase {
 
     _db = targetPath == ':memory:' ? sqlite3.openInMemory() : sqlite3.open(targetPath);
     _initSchema();
+    if (targetPath != ':memory:') {
+      _startExternalChangeWatcher();
+    }
+  }
+
+  /// Polls SQLite's `PRAGMA data_version`, which only changes when a
+  /// *different* connection (i.e. another Network Suite process) commits a
+  /// write. Each change is surfaced through [onDatabaseChanged] so every
+  /// running app refreshes live (e.g. when the suite theme is toggled).
+  void _startExternalChangeWatcher() {
+    _externalChangeTimer?.cancel();
+    _lastDataVersion = _readDataVersion();
+    _externalChangeTimer = Timer.periodic(externalChangePollInterval, (_) {
+      final version = _readDataVersion();
+      if (version == null) return;
+      if (_lastDataVersion != null && version != _lastDataVersion) {
+        notifyChanged();
+      }
+      _lastDataVersion = version;
+    });
+  }
+
+  int? _readDataVersion() {
+    final db = _db;
+    if (db == null) return null;
+    try {
+      final rows = db.select('PRAGMA data_version;');
+      return rows.isEmpty ? null : rows.first.columnAt(0) as int;
+    } catch (_) {
+      return null;
+    }
   }
 
   void _initSchema() {
@@ -123,7 +161,46 @@ class SharedDeviceDatabase {
       );
 
       CREATE INDEX IF NOT EXISTS idx_custom_category_label ON custom_device_categories(label);
+
+      CREATE TABLE IF NOT EXISTS suite_settings (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     ''');
+  }
+
+  /// Settings key under which the suite-wide theme mode is stored.
+  static const String themeModeKey = 'theme_mode';
+
+  /// Returns the suite-wide theme mode: `'dark'` (default) or `'light'`.
+  Future<String> getThemeMode() async {
+    final db = _db;
+    if (db == null) return 'dark';
+    final rows = db.select(
+      'SELECT value FROM suite_settings WHERE key = ? LIMIT 1;',
+      [themeModeKey],
+    );
+    if (rows.isEmpty) return 'dark';
+    return rows.first['value'] == 'light' ? 'light' : 'dark';
+  }
+
+  /// Sets the suite-wide theme mode (`'dark'` or `'light'`) and notifies
+  /// listeners in this process; other processes pick it up via the
+  /// external change watcher.
+  Future<void> setThemeMode(String mode) async {
+    if (mode != 'dark' && mode != 'light') {
+      throw ArgumentError.value(mode, 'mode', "must be 'dark' or 'light'");
+    }
+    final db = _db;
+    if (db == null) {
+      throw StateError('SharedDeviceDatabase is not initialized.');
+    }
+    db.execute(
+      'INSERT OR REPLACE INTO suite_settings (key, value, updated_at) VALUES (?, ?, ?);',
+      [themeModeKey, mode, DateTime.now().toUtc().toIso8601String()],
+    );
+    notifyChanged();
   }
 
   /// Retrieves a device by its MAC address.
@@ -439,6 +516,8 @@ class SharedDeviceDatabase {
 
   /// Closes the database connection.
   void close() {
+    _externalChangeTimer?.cancel();
+    _externalChangeTimer = null;
     _db?.close();
     _db = null;
     _changeController.close();

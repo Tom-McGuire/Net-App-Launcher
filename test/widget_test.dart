@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:net_app_launcher/core/app_theme.dart';
 import 'package:net_app_launcher/core/constants.dart';
 import 'package:net_app_launcher/data/repositories/device_repository.dart';
 import 'package:net_app_launcher/domain/models/release_info.dart';
@@ -37,6 +38,78 @@ void main() {
 
   tearDown(() {
     db.close();
+  });
+
+  group('Light & dark mode sync', () {
+    tearDown(() => AppTheme.isDark = true);
+
+    testWidgets('top bar toggle persists theme and re-renders the app',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      AppTheme.isDark = true;
+
+      await tester.pumpWidget(
+        NetworkSuiteLauncherApp(
+          launcherViewModel: MockLauncherViewModel(),
+          deviceManagerViewModel:
+              DeviceManagerViewModel(repository: DeviceRepository(database: db)),
+          database: db,
+        ),
+      );
+      await tester.pump();
+
+      Color scaffoldColor() =>
+          tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor!;
+
+      expect(scaffoldColor(), const Color(0xFF141414));
+      expect(tester.widget<Switch>(find.byKey(const Key('theme_toggle_button'))).value, isFalse);
+
+      // Toggle -> light
+      await tester.tap(find.byKey(const Key('theme_toggle_button')));
+      await tester.pumpAndSettle();
+      expect(await db.getThemeMode(), 'light');
+      expect(AppTheme.isDark, isFalse);
+      expect(scaffoldColor(), const Color(0xFFF3F4F6));
+      expect(tester.widget<Switch>(find.byKey(const Key('theme_toggle_button'))).value, isTrue);
+
+      // Toggle -> dark
+      await tester.tap(find.byKey(const Key('theme_toggle_button')));
+      await tester.pumpAndSettle();
+      expect(await db.getThemeMode(), 'dark');
+      expect(scaffoldColor(), const Color(0xFF141414));
+    });
+
+    testWidgets('app follows theme changes written to the shared database',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      AppTheme.isDark = true;
+
+      await tester.pumpWidget(
+        NetworkSuiteLauncherApp(
+          launcherViewModel: MockLauncherViewModel(),
+          deviceManagerViewModel:
+              DeviceManagerViewModel(repository: DeviceRepository(database: db)),
+          database: db,
+        ),
+      );
+      await tester.pump();
+
+      // Simulates another suite app (or process) changing the theme.
+      await db.setThemeMode('light');
+      await tester.pumpAndSettle();
+      expect(AppTheme.isDark, isFalse);
+      expect(tester.widget<Switch>(find.byKey(const Key('theme_toggle_button'))).value, isTrue);
+    });
   });
 
   testWidgets('Network Suite Launcher smoke test', (WidgetTester tester) async {
