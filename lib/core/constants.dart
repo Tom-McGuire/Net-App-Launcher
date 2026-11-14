@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.8.0.Beta';
+  static const String currentVersion = 'v0.8.1.Beta';
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
@@ -117,6 +117,15 @@ class SuiteConstants {
       category: 'Discovery & L2',
       summary: 'Switch Port Identifier (LLDP & CDP listener) for mapping physical wall sockets to switch ports, VLANs, and device identities.',
       icon: Icons.lan,
+    ),
+    AppCatalogDefinition(
+      id: 'net-design',
+      name: 'Net Design',
+      repoName: 'Net-Design',
+      defaultExecutableName: 'net_design',
+      category: 'Topology & Routing',
+      summary: 'Vendor-neutral network topology canvas, VLAN/STP simulation, and subnet planning design sandbox.',
+      icon: Icons.account_tree,
     ),
   ];
 }
