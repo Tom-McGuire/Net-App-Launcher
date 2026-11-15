@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Represents a user-defined custom device category stored in `custom_device_categories`.
 class CustomDeviceCategory {
