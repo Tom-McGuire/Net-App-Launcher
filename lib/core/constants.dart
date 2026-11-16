@@ -2,7 +2,10 @@ import 'package:material_ui/material_ui.dart';
 
 class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
-  static const String currentVersion = 'v0.8.1.Beta';
+  static const String currentVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: 'v0.8.3.Beta',
+  );
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
 
