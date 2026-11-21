@@ -9,6 +9,7 @@ class AppCardItem extends StatelessWidget {
   final VoidCallback onLaunch;
   final VoidCallback? onStop;
   final VoidCallback? onUninstall;
+  final VoidCallback? onDownloadManual;
 
   const AppCardItem({
     super.key,
@@ -17,6 +18,7 @@ class AppCardItem extends StatelessWidget {
     required this.onLaunch,
     this.onStop,
     this.onUninstall,
+    this.onDownloadManual,
   });
 
   @override
@@ -81,6 +83,32 @@ class AppCardItem extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (app.hasManualPdf) ...[
+                  Tooltip(
+                    message: 'Download User Manual (PDF)',
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryAccent,
+                        side: BorderSide(
+                          color: AppTheme.primaryAccent.withValues(alpha: 0.45),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: const Size(0, 28),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 13),
+                      label: const Text(
+                        'Manual',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      onPressed: onDownloadManual,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 IconButton(
                   tooltip: 'View Details & Options',
                   icon: const Icon(Icons.info_outline, size: 16),

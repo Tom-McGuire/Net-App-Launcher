@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_theme.dart';
+import '../../../domain/models/suite_app.dart';
 import '../../view_models/launcher_view_model.dart';
 import 'app_card_item.dart';
 
@@ -142,6 +145,9 @@ class AppsDashboardView extends StatelessWidget {
                               onLaunch: () => vm.launch(app),
                               onStop: () => vm.stop(app),
                               onUninstall: () => vm.uninstall(app),
+                              onDownloadManual: app.hasManualPdf
+                                  ? () => _handleDownloadManual(context, vm, app)
+                                  : null,
                             );
                           },
                         );
@@ -207,5 +213,55 @@ class AppsDashboardView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handleDownloadManual(
+    BuildContext context,
+    LauncherViewModel vm,
+    SuiteApp app,
+  ) async {
+    final bytes = await vm.downloadManualBytes(app);
+    if (!context.mounted) return;
+    if (bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            vm.errorMessage ?? 'Failed to download ${app.name} manual.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final defaultFileName = '${app.definition.repoName}_USER_MANUAL.pdf';
+    final saveUri = await FilePicker.saveFile(
+      dialogTitle: 'Save ${app.name} Manual',
+      fileName: defaultFileName,
+      bytes: bytes,
+    );
+    if (saveUri != null && context.mounted) {
+      final canOpen = saveUri.scheme == 'file';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved ${app.name} manual'),
+          action: canOpen
+              ? SnackBarAction(
+                  label: 'Open',
+                  onPressed: () => _openLocalFile(saveUri.toFilePath()),
+                )
+              : null,
+        ),
+      );
+    }
+  }
+
+  static void _openLocalFile(String filePath) {
+    if (Platform.isWindows) {
+      Process.run('cmd', ['/c', 'start', '', filePath]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', [filePath]);
+    } else {
+      Process.run('xdg-open', [filePath]);
+    }
   }
 }

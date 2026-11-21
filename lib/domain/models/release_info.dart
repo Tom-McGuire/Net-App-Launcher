@@ -90,6 +90,24 @@ class ReleaseInfo {
     return tagName.trim() != currentVersion.trim();
   }
 
+  /// Finds an attached PDF manual asset in [assets], if any.
+  ReleaseAsset? findManualPdfAsset() {
+    final pdfAssets = assets.where((a) {
+      final lowerName = a.name.toLowerCase();
+      final lowerUrl = a.downloadUrl.toLowerCase();
+      return lowerName.endsWith('.pdf') || lowerUrl.endsWith('.pdf');
+    }).toList();
+
+    if (pdfAssets.isEmpty) return null;
+    return pdfAssets.firstWhere(
+      (a) {
+        final lower = a.name.toLowerCase();
+        return lower.contains('manual') || lower.contains('guide');
+      },
+      orElse: () => pdfAssets.first,
+    );
+  }
+
   /// Finds the binary asset archive matching the current desktop operating system.
   ReleaseAsset? findAssetForCurrentPlatform() {
     if (Platform.isWindows) {

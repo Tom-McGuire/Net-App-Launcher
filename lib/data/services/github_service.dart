@@ -52,6 +52,7 @@ class GitHubService {
   bool _isRateLimited = false;
   DateTime? _rateLimitResetTime;
   final Map<String, CachedReleaseEntry> _cache = {};
+  final Map<String, String?> _manualPdfCache = {};
 
   GitHubService({
     http.Client? client,
@@ -124,6 +125,7 @@ class GitHubService {
 
   void clearCache() {
     _cache.clear();
+    _manualPdfCache.clear();
     try {
       final path = cacheFilePath;
       if (path != null) {
@@ -265,5 +267,86 @@ class GitHubService {
 
     await Future.wait(futures);
     return results;
+  }
+
+  static bool _isValidPdfLink(String? url) {
+    if (url == null || url.trim().isEmpty) return false;
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return false;
+    return uri.path.toLowerCase().endsWith('.pdf');
+  }
+
+  static bool _isPdfResponseContentType(String? contentType) {
+    if (contentType == null || contentType.trim().isEmpty) return true;
+    final lower = contentType.toLowerCase().split(';').first.trim();
+    return lower == 'application/pdf' ||
+        lower == 'application/octet-stream' ||
+        lower == 'binary/octet-stream';
+  }
+
+  /// Resolves a verified PDF manual URL for [app], checking any attached `.pdf`
+  /// release asset first and then verifying the repo's candidate manual URL
+  /// (`HEAD` 200 + PDF-compatible content-type). Returns `null` if unavailable.
+  Future<String?> resolveManualPdfUrl(
+    AppCatalogDefinition app, {
+    ReleaseInfo? release,
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _manualPdfCache.containsKey(app.id)) {
+      return _manualPdfCache[app.id];
+    }
+
+    final assetUrl = release?.findManualPdfAsset()?.downloadUrl;
+    if (_isValidPdfLink(assetUrl)) {
+      final resolved = assetUrl!.trim();
+      _manualPdfCache[app.id] = resolved;
+      return resolved;
+    }
+
+    final candidate = app.effectiveManualUrl;
+    if (!_isValidPdfLink(candidate)) {
+      _manualPdfCache[app.id] = null;
+      return null;
+    }
+
+    try {
+      final uri = Uri.parse(candidate);
+      final headers = <String, String>{'User-Agent': 'NetworkSuiteLauncher/1.0'};
+      if (personalAccessToken != null && personalAccessToken!.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $personalAccessToken';
+      }
+      final response = await _client
+          .head(uri, headers: headers)
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200 &&
+          _isPdfResponseContentType(response.headers['content-type'])) {
+        _manualPdfCache[app.id] = candidate;
+        return candidate;
+      }
+    } catch (_) {
+      // Network/timeout errors leave manual unavailable without blocking app discovery
+    }
+
+    _manualPdfCache[app.id] = null;
+    return null;
+  }
+
+  /// Downloads the raw PDF bytes from [url].
+  Future<List<int>> downloadManualBytes(String url) async {
+    if (!_isValidPdfLink(url)) {
+      throw Exception('Invalid PDF manual URL: $url');
+    }
+    final uri = Uri.parse(url.trim());
+    final headers = <String, String>{'User-Agent': 'NetworkSuiteLauncher/1.0'};
+    if (personalAccessToken != null && personalAccessToken!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $personalAccessToken';
+    }
+    final response = await _client
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to download manual (HTTP ${response.statusCode})');
+    }
+    return response.bodyBytes;
   }
 }

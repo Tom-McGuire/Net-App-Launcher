@@ -167,6 +167,131 @@ void main() {
     });
   });
 
+  group('Manual PDF Discovery & Download', () {
+    late Directory manualCacheDir;
+
+    setUp(() {
+      manualCacheDir = Directory.systemTemp.createTempSync('gh_manual_test_');
+    });
+
+    tearDown(() {
+      try {
+        manualCacheDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('resolveManualPdfUrl returns URL on 200 PDF HEAD and null on 404 or HTML', () async {
+      const def = AppCatalogDefinition(
+        id: 'net-design',
+        name: 'Net Design',
+        repoName: 'Net-Design',
+        defaultExecutableName: 'net_design',
+        category: 'Topology & Routing',
+        summary: 'Network topology canvas',
+        icon: Icons.account_tree,
+      );
+
+      final pdfClient = FakeHttpClient((request) async {
+        expect(request.method, 'HEAD');
+        expect(
+          request.url.toString(),
+          'https://raw.githubusercontent.com/Tom-McGuire/Net-Design/main/USER_MANUAL.pdf',
+        );
+        return http.StreamedResponse(
+          const Stream.empty(),
+          200,
+          headers: {'content-type': 'application/pdf'},
+        );
+      });
+
+      final serviceOk = GitHubService(
+        client: pdfClient,
+        customCacheDir: manualCacheDir.path,
+      );
+      final resolved = await serviceOk.resolveManualPdfUrl(def);
+      expect(
+        resolved,
+        'https://raw.githubusercontent.com/Tom-McGuire/Net-Design/main/USER_MANUAL.pdf',
+      );
+
+      final htmlClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(
+          const Stream.empty(),
+          200,
+          headers: {'content-type': 'text/html; charset=utf-8'},
+        );
+      });
+      final serviceHtml = GitHubService(
+        client: htmlClient,
+        customCacheDir: manualCacheDir.path,
+      );
+      expect(await serviceHtml.resolveManualPdfUrl(def, forceRefresh: true), isNull);
+
+      final missingClient = FakeHttpClient((request) async {
+        return http.StreamedResponse(const Stream.empty(), 404);
+      });
+      final service404 = GitHubService(
+        client: missingClient,
+        customCacheDir: manualCacheDir.path,
+      );
+      expect(await service404.resolveManualPdfUrl(def, forceRefresh: true), isNull);
+    });
+
+    test('resolveManualPdfUrl prefers attached PDF release asset and downloadManualBytes fetches bytes', () async {
+      const def = AppCatalogDefinition(
+        id: 'net-design',
+        name: 'Net Design',
+        repoName: 'Net-Design',
+        defaultExecutableName: 'net_design',
+        category: 'Topology & Routing',
+        summary: 'Network topology canvas',
+        icon: Icons.account_tree,
+      );
+
+      final release = ReleaseInfo(
+        tagName: 'v1.0.0',
+        name: 'v1.0.0',
+        publishedAt: DateTime(2026, 11, 21),
+        body: '',
+        assets: const [
+          ReleaseAsset(
+            name: 'Net-Design_windows_x64.zip',
+            downloadUrl: 'https://github.com/Tom-McGuire/Net-Design/releases/download/v1.0.0/Net-Design_windows_x64.zip',
+            sizeBytes: 1024,
+            contentType: 'application/zip',
+          ),
+          ReleaseAsset(
+            name: 'USER_MANUAL.pdf',
+            downloadUrl: 'https://github.com/Tom-McGuire/Net-Design/releases/download/v1.0.0/USER_MANUAL.pdf',
+            sizeBytes: 512,
+            contentType: 'application/pdf',
+          ),
+        ],
+      );
+
+      final client = FakeHttpClient((request) async {
+        expect(request.method, 'GET');
+        return http.StreamedResponse(
+          Stream.value(utf8.encode('%PDF-1.4\n')),
+          200,
+        );
+      });
+
+      final service = GitHubService(
+        client: client,
+        customCacheDir: manualCacheDir.path,
+      );
+      final url = await service.resolveManualPdfUrl(def, release: release);
+      expect(
+        url,
+        'https://github.com/Tom-McGuire/Net-Design/releases/download/v1.0.0/USER_MANUAL.pdf',
+      );
+
+      final bytes = await service.downloadManualBytes(url!);
+      expect(utf8.decode(bytes), '%PDF-1.4\n');
+    });
+  });
+
   group('GitHubService Caching & Rate Limiting', () {
     late Directory cacheTempDir;
 

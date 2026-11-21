@@ -321,8 +321,34 @@ void main() {
     await tester.pump();
 
     expect(find.text('Launch'), findsOneWidget);
+    expect(find.text('Manual'), findsNothing);
     await tester.tap(find.text('Launch'));
     expect(launchClicked, isTrue);
+
+    // 3. Manual PDF button visible only when manualPdfUrl is set
+    bool manualClicked = false;
+    final withManualApp = installedApp.copyWith(
+      manualPdfUrl:
+          'https://raw.githubusercontent.com/Tom-McGuire/Net-Design/main/USER_MANUAL.pdf',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppCardItem(
+            app: withManualApp,
+            onInstallOrUpdate: () {},
+            onLaunch: () {},
+            onDownloadManual: () => manualClicked = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Manual'), findsOneWidget);
+    await tester.tap(find.text('Manual'));
+    expect(manualClicked, isTrue);
 
     // 3. Downloading state
     const downloadingApp = SuiteApp(

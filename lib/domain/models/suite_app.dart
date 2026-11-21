@@ -23,6 +23,7 @@ class SuiteApp {
   final String? executablePath;
   final DependencyInfo? dependencyInfo;
   final bool isRunning;
+  final String? manualPdfUrl;
 
   const SuiteApp({
     required this.definition,
@@ -35,12 +36,16 @@ class SuiteApp {
     this.executablePath,
     this.dependencyInfo,
     this.isRunning = false,
+    this.manualPdfUrl,
   });
 
   String get id => definition.id;
   String get name => definition.name;
   String get category => definition.category;
   String get summary => definition.summary;
+
+  bool get hasManualPdf =>
+      manualPdfUrl != null && manualPdfUrl!.trim().isNotEmpty;
 
   bool get canLaunch =>
       (status == AppStatus.installed || status == AppStatus.updateAvailable) &&
@@ -60,6 +65,7 @@ class SuiteApp {
     String? executablePath,
     DependencyInfo? dependencyInfo,
     bool? isRunning,
+    String? manualPdfUrl,
   }) {
     return SuiteApp(
       definition: definition ?? this.definition,
@@ -72,6 +78,7 @@ class SuiteApp {
       executablePath: executablePath ?? this.executablePath,
       dependencyInfo: dependencyInfo ?? this.dependencyInfo,
       isRunning: isRunning ?? this.isRunning,
+      manualPdfUrl: manualPdfUrl ?? this.manualPdfUrl,
     );
   }
 }

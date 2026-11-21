@@ -297,6 +297,7 @@ class LauncherViewModel extends ChangeNotifier {
             executablePath: null,
             dependencyInfo: updated.dependencyInfo,
             isRunning: false,
+            manualPdfUrl: updated.manualPdfUrl,
           );
         }
         notifyListeners();
@@ -304,6 +305,20 @@ class LauncherViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to uninstall ${app.name}: $e';
       notifyListeners();
+    }
+  }
+
+  /// Downloads the PDF manual bytes for [app].
+  /// Returns `null` if unavailable or on error.
+  Future<Uint8List?> downloadManualBytes(SuiteApp app) async {
+    final url = app.manualPdfUrl;
+    if (url == null || url.trim().isEmpty) return null;
+    try {
+      return await _repository.downloadManualBytes(url);
+    } catch (e) {
+      _errorMessage = 'Failed to download manual for ${app.name}: $e';
+      notifyListeners();
+      return null;
     }
   }
 }

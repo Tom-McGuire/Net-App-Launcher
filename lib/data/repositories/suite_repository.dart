@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import '../../core/constants.dart';
 import '../../domain/models/dependency_info.dart';
 import '../../domain/models/release_info.dart';
@@ -122,7 +123,31 @@ class SuiteRepository {
       }
     }
 
+    if (apps.isNotEmpty) {
+      final manualUrls = await Future.wait(
+        apps.map(
+          (app) => _gitHubService.resolveManualPdfUrl(
+            app.definition,
+            release: app.latestRelease,
+            forceRefresh: forceRefresh,
+          ),
+        ),
+      );
+      for (var i = 0; i < apps.length; i++) {
+        final manualUrl = manualUrls[i];
+        if (manualUrl != null) {
+          apps[i] = apps[i].copyWith(manualPdfUrl: manualUrl);
+        }
+      }
+    }
+
     return apps;
+  }
+
+  /// Downloads the raw PDF manual bytes from [url].
+  Future<Uint8List> downloadManualBytes(String url) async {
+    final bytes = await _gitHubService.downloadManualBytes(url);
+    return Uint8List.fromList(bytes);
   }
 
   /// Installs or updates a suite application.

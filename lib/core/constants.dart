@@ -4,7 +4,7 @@ class SuiteConstants {
   static const String appTitle = 'Network Suite Launcher';
   static const String currentVersion = String.fromEnvironment(
     'APP_VERSION',
-    defaultValue: 'v0.8.4.Beta',
+    defaultValue: 'v0.8.5.Beta',
   );
   static const String launcherRepoName = 'Net-App-Launcher';
   static const String defaultGithubOwner = 'Tom-McGuire';
@@ -144,6 +144,7 @@ class AppCatalogDefinition {
   final String? dependencyId;
   final String? dependencyName;
   final String? dependencyInstallCmd;
+  final String? manualUrl;
 
   const AppCatalogDefinition({
     required this.id,
@@ -156,5 +157,16 @@ class AppCatalogDefinition {
     this.dependencyId,
     this.dependencyName,
     this.dependencyInstallCmd,
+    this.manualUrl,
   });
+
+  /// Default GitHub raw URL for this app's PDF user manual on `main`.
+  String get defaultManualUrl =>
+      'https://raw.githubusercontent.com/${SuiteConstants.defaultGithubOwner}/$repoName/main/USER_MANUAL.pdf';
+
+  /// Effective candidate URL for this app's PDF manual.
+  String get effectiveManualUrl =>
+      (manualUrl != null && manualUrl!.trim().isNotEmpty)
+          ? manualUrl!.trim()
+          : defaultManualUrl;
 }
