@@ -384,9 +384,11 @@ packages:
   network_suite_shared:
     dependency: "direct main"
     description:
-      path: "packages/network_suite_shared"
-      relative: true
-    source: path
+      path: "."
+      ref: main
+      resolved-ref: "12512b782382be36a64f577a7e13ead48d4b0cff"
+      url: "https://github.com/Tom-McGuire/network-suite-shared.git"
+    source: git
     version: "1.0.0"
   objective_c:
     dependency: transitive
@@ -545,6 +547,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.8.0"
+  sqlite3_flutter_libs:
+    dependency: transitive
+    description:
+      name: sqlite3_flutter_libs
+      sha256: "3ed7553eee7bb368f8950f58ba29f634e06e813c029aff6a0d60862b96de8454"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0+eol"
   stack_trace:
     dependency: transitive
     description:

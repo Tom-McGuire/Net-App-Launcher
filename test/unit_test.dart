@@ -976,6 +976,60 @@ void main() {
       expect(missingResult.isInstalled, isFalse);
       expect(missingResult.version, isNull);
     });
+
+    test('delegates tshark/dumpcap/tcpdump checks to CaptureBinaryLocator', () async {
+      final locator = CaptureBinaryLocator(
+        isWindows: true,
+        isLinux: false,
+        isMacOS: false,
+        environment: const {
+          'ProgramFiles': r'C:\Program Files',
+          'SystemRoot': r'C:\Windows',
+        },
+        fileExists: (path) =>
+            path == r'C:\Program Files\Wireshark\tshark.exe' ||
+            path == r'C:\Windows\System32\Npcap\wpcap.dll',
+        processRunner: (executable, args) async {
+          if (executable == r'C:\Program Files\Wireshark\tshark.exe' &&
+              args.contains('-v')) {
+            return ProcessResult(0, 0, 'TShark (Wireshark) 4.4.0\n', '');
+          }
+          if (executable == 'sc' && args.contains('npcap')) {
+            return ProcessResult(0, 0, 'STATE : 4 RUNNING\n', '');
+          }
+          return ProcessResult(0, 1, '', 'not found');
+        },
+      );
+
+      final depService = DependencyService(captureLocator: locator);
+
+      final tsharkInfo = await depService.checkDependency(
+        id: 'tshark',
+        name: 'Wireshark / TShark',
+        installCommand: 'winget install -e --id WiresharkFoundation.Wireshark',
+      );
+      expect(tsharkInfo.isInstalled, isTrue);
+      expect(tsharkInfo.version, 'TShark (Wireshark) 4.4.0');
+
+      final dumpcapInfo = await depService.checkDependency(
+        id: 'dumpcap',
+        name: 'Dumpcap',
+        installCommand: 'winget install -e --id WiresharkFoundation.Wireshark',
+      );
+      expect(dumpcapInfo.isInstalled, isFalse);
+      expect(dumpcapInfo.version, isNull);
+
+      final tcpdumpInfo = await depService.checkDependency(
+        id: 'tcpdump',
+        name: 'tcpdump',
+        installCommand: 'sudo apt install -y tcpdump',
+      );
+      expect(tcpdumpInfo.isInstalled, isFalse);
+
+      final perm = await depService.checkCapturePermissions(CaptureTool.tshark);
+      expect(perm.canCapture, isTrue);
+      expect(perm.binaryPath, r'C:\Program Files\Wireshark\tshark.exe');
+    });
   });
 
   group('SuiteRepository App Status & Lifecycle Coordination', () {
