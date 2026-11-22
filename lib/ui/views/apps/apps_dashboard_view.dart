@@ -223,13 +223,18 @@ class AppsDashboardView extends StatelessWidget {
     final bytes = await vm.downloadManualBytes(app);
     if (!context.mounted) return;
     if (bytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            vm.errorMessage ?? 'Failed to download ${app.name} manual.',
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              vm.errorMessage ?? 'Failed to download ${app.name} manual.',
+            ),
+            duration: const Duration(seconds: 5),
+            showCloseIcon: true,
+            behavior: SnackBarBehavior.floating,
           ),
-        ),
-      );
+        );
       return;
     }
 
@@ -241,17 +246,26 @@ class AppsDashboardView extends StatelessWidget {
     );
     if (saveUri != null && context.mounted) {
       final canOpen = saveUri.scheme == 'file';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Saved ${app.name} manual'),
-          action: canOpen
-              ? SnackBarAction(
-                  label: 'Open',
-                  onPressed: () => _openLocalFile(saveUri.toFilePath()),
-                )
-              : null,
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Saved ${app.name} manual'),
+            duration: const Duration(seconds: 5),
+            persist: false,
+            showCloseIcon: true,
+            behavior: SnackBarBehavior.floating,
+            action: canOpen
+                ? SnackBarAction(
+                    label: 'Open',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      _openLocalFile(saveUri.toFilePath());
+                    },
+                  )
+                : null,
+          ),
+        );
     }
   }
 
